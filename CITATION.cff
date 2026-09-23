@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "If you use MEYRO in your work, please cite it using this metadata."
+title: "MEYRO: Personalized Baseline Modeling for Longitudinal Multimodal Health Anomaly Detection"
+abstract: >-
+  MEYRO investigates whether personalized longitudinal baselines can identify
+  meaningful deviations in individual behavioral and physiological signals more
+  effectively, or with fewer false positives, than population-level baselines.
+  This is a research system in progress; no results or clinical claims have been
+  published. MEYRO is not a medical diagnostic system.
+type: software
+authors:
+  - family-names: "Bose"
+    given-names: "Arghya"
+    alias: "officialarghya29"
+    email: "officialarghya29@gmail.com"
+    website: "https://github.com/officialarghya29"
+repository-code: "https://github.com/officialarghya29/meyro"
+url: "https://github.com/officialarghya29/meyro"
+license: MIT
+keywords:
+  - personalized-anomaly-detection
+  - longitudinal-health-monitoring
+  - digital-phenotyping
+  - time-series
+  - self-supervised-learning
+  - uncertainty-estimation
+  - concept-drift
+  - explainable-ai
+  - privacy-preserving-machine-learning
+version: "0.0.1"
+date-released: "2026-09-23"

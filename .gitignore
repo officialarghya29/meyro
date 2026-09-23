@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------------------
+# MEYRO .gitignore
+# RULE 22 of the master spec: never commit health/personal data.
+# RULE 21: keep secrets out of Git.
+# ---------------------------------------------------------------------------
+
+# --- Secrets & environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+credentials.json
+
+# --- Data: NEVER commit personal/health data (only .gitkeep placeholders) ---
+data/**
+!data/**/
+!data/**/.gitkeep
+!data/README.md
+
+# --- Models & artifacts (track via DVC/MLflow, not raw Git) ---
+models/**
+!models/.gitkeep
+mlruns/
+mlartifacts/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.joblib
+*.pkl
+*.h5
+
+# --- Results: generated, not source ---
+results/**
+!results/**/
+!results/**/.gitkeep
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+.ipynb_checkpoints/
+
+# --- Node / frontend ---
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+
+# --- Jupyter ---
+*.ipynb_checkpoints/
+
+# --- OS / editors ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# --- Logs ---
+*.log
+logs/

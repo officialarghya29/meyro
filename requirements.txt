@@ -1,0 +1,41 @@
+# ---------------------------------------------------------------------------
+# MEYRO — runtime dependencies
+#
+# Phase 0 creates this manifest but installs nothing beyond the light dev
+# tooling (see requirements-dev.txt). Heavy dependencies (torch, mlflow) are
+# installed when the phase that needs them begins, so that Phase 0 stays
+# reproducible and fast to set up.
+# ---------------------------------------------------------------------------
+
+# --- Core scientific stack (Phase 4–5) ---
+numpy>=1.26
+pandas>=2.2
+scipy>=1.13
+scikit-learn>=1.5
+pyarrow>=16.0
+
+# --- Configuration, validation, serialization ---
+pydantic>=2.8
+pydantic-settings>=2.4
+PyYAML>=6.0
+
+# --- Deep learning (Phase 9+) ---
+# Installed on demand; not required for phases 0–8.
+torch>=2.4
+
+# --- Experiment tracking (Phase 29) ---
+mlflow>=2.15
+
+# --- API (Phase 19) ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+
+# --- Database (Phase 20) ---
+SQLAlchemy>=2.0
+alembic>=1.13
+psycopg[binary]>=3.2
+
+# --- Security (Phase 21) ---
+passlib[bcrypt]>=1.7
+python-jose[cryptography]>=3.3
