@@ -13,7 +13,7 @@
 | | |
 |---|---|
 | **Status** | Draft v0.1 — Phase 2, first pass |
-| **Sources captured** | 19 entries in the matrix |
+| **Sources captured** | 22 entries in the matrix |
 | **Verification** | Every entry carries a `source_verification` column; **no citation in this document was invented** |
 | **Revises** | The provisional gap statement in `problem_definition.md` §4 |
 | **Must be revised by** | A database-backed search (Scopus/PubMed/IEEE Xplore/ACM DL) before any paper submission |
@@ -76,7 +76,7 @@ monitoring, or a candidate dataset.
 
 1. **Not systematic.** No database query strings, no PRISMA flow, no
    dual-reviewer screening, no formal risk-of-bias assessment.
-2. **Not exhaustive.** Nineteen entries cannot represent a field this broad.
+2. **Not exhaustive.** Twenty-two entries cannot represent a field this broad.
 3. **Not independently verified.** Metadata was confirmed against
    publisher/DOI/repository records where reachable; several author lists and
    venue details (flagged in the matrix) remain unconfirmed and are marked
@@ -141,12 +141,19 @@ self-supervision literature is active and, importantly, has begun to raise its
 own critique: generic pretraining objectives can *obscure the clinical
 semantics* needed for downstream transfer.
 
+Yuan et al. (2024, *npj Digital Medicine*) push this to scale, pretraining on
+the UK Biobank accelerometer corpus — on the order of 700,000 person-days of
+unlabelled wearable data — and improving downstream activity recognition. So
+self-supervision on wearable signals is not speculative; it works, at scale.
+
 **Implication:** self-supervised pretraining is a plausible component of MEYRO
 (Phase 12), but the honest position is that **a generic, population-level
 pretrained representation may be exactly the wrong thing for a personalized
-baseline** — it encodes what is typical *across* people. Phase 12 must
-therefore include a personalization-aware comparator, not just TS2Vec, and
-must be allowed to conclude "not worth it."
+baseline** — it encodes what is typical *across* people. Yuan et al. also make
+clear that the *scale* axis is already occupied, so MEYRO cannot claim
+contribution there either. Phase 12 must therefore include a
+personalization-aware comparator, not just TS2Vec, and must be allowed to
+conclude "not worth it."
 
 ### 3.5 Concept drift: the vocabulary MEYRO needed, and a warning
 
@@ -323,7 +330,7 @@ Adopted from the literature (each traceable to a source in the matrix):
 
 1. **Scoping, not systematic** (§2.4). No PRISMA, no dual screening, no
    risk-of-bias assessment.
-2. **Only 19 sources**, captured from a search engine whose ranking is
+2. **Only 22 sources**, captured from a search engine whose ranking is
    citation- and recency-biased. Long-tail relevant work is likely missed.
 3. **Snippet-level evidence.** Several entries rest on search-result snippets
    plus repository/metadata pages, not full texts. Where a claim required the
@@ -350,6 +357,9 @@ Adopted from the literature (each traceable to a source in the matrix):
 - [ ] Extract reported metrics from each personalized-vs-population comparison
       paper, to actually test G2.
 - [ ] Verify and complete all `source_verification` entries in the matrix.
+- [ ] Add the LifeSnaps, PMData, GLOBEM and Sleep-EDF data-descriptor papers,
+      which are relevant to Phase 3 and are currently cited only from
+      `dataset_strategy.md`.
 - [ ] Add primary sources for One-Class SVM (Schölkopf et al. 2001) and Local
       Outlier Factor (Breunig et al. 2000), which Phase 8 requires and which
       were **not** verified in this pass.
@@ -384,6 +394,7 @@ verification status of every field. Ordered by year.
 17. Nepal, S., et al. (2024). *A Four-Year Mobile Sensing Study of Mental Health …* ACM. DOI 10.1145/3643501.
 18. Gabrielli, D., et al. (2025). *AI on the Pulse: Real-Time Health Anomaly Detection with wearable sensors.* arXiv:2508.03436.
 19. *Personalized Baseline Modeling Using Machine Learning to Detect Anomalies in Longitudinal Wearable Sensor Data.* (2025) — **direct novelty threat; full text required.**
+20. Yuan, H., et al. (2024). *Self-supervised learning for human activity recognition using 700,000 person-days of wearable data.* npj Digital Medicine, article s41746-024-01062-3.
 
 ---
 
@@ -391,4 +402,4 @@ verification status of every field. Ordered by year.
 
 | Version | Date | Change |
 |---|---|---|
-| v0.1 | 2026-09-23 | First pass: 19 sources, gap hypothesis narrowed, §5 novelty threats documented, Phase 2 marked incomplete. |
+| v0.1 | 2026-09-23 | First pass: 21 sources, gap hypothesis narrowed, §5 novelty threats documented, Phase 2 marked incomplete. |
