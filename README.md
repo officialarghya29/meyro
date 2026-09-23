@@ -18,7 +18,7 @@ deviations from *that person's* baseline.**
 
 [![Status](https://img.shields.io/badge/status-phase%200%20%C2%B7%20initialization-48d8f0?style=flat-square&labelColor=000c24)](#project-status)
 [![Research](https://img.shields.io/badge/research-in%20progress-90f0c0?style=flat-square&labelColor=000c24)](#research-question)
-[![Not a diagnosis](https://img.shields.io/badge/MEYRO-not%20a%20medical%20diagnosis-e8b655?style=flat-square&labelColor=000c24)](#-safety-statement)
+[![Not a diagnosis](https://img.shields.io/badge/MEYRO-not%20a%20medical%20diagnosis-e8b655?style=flat-square&labelColor=000c24)](#safety-statement)
 [![Python](https://img.shields.io/badge/python-3.12-48d8f0?style=flat-square&labelColor=000c24)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-90f0c0?style=flat-square&labelColor=000c24)](./LICENSE)
 
@@ -358,7 +358,9 @@ and until a formal assessment says so.
 
 <div align="center">
 
-### ⚕️ SAFETY STATEMENT
+### Safety Statement
+
+*The line MEYRO does not cross.*
 
 </div>
 

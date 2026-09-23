@@ -33,11 +33,11 @@
   <text x="100" y="168" font-family="'Segoe UI', Inter, Helvetica, Arial, sans-serif"
         font-size="86" font-weight="700" letter-spacing="14" fill="url(#accent)" filter="url(#glow)">MEYRO</text>
 
-  <text x="104" y="212" font-family="'Segoe UI', Inter, Helvetica, Arial, sans-serif"
-        font-size="21" font-weight="600" letter-spacing="7" fill="#e8f4f8" opacity="0.92">AI THAT LEARNS YOUR NORMAL</text>
+  <text x="104" y="214" font-family="'Segoe UI', Inter, Helvetica, Arial, sans-serif"
+        font-size="23" font-weight="600" letter-spacing="6" fill="#eef8fb" opacity="0.96">AI THAT LEARNS YOUR NORMAL</text>
 
-  <text x="104" y="262" font-family="'Segoe UI', Inter, Helvetica, Arial, sans-serif"
-        font-size="14" font-weight="400" letter-spacing="2" fill="#8fb6c9" opacity="0.8">PERSONALIZED LONGITUDINAL BASELINES · DEVIATION DETECTION · NOT A DIAGNOSIS</text>
+  <text x="104" y="264" font-family="'Segoe UI', Inter, Helvetica, Arial, sans-serif"
+        font-size="17" font-weight="400" letter-spacing="1.5" fill="#a8ccdd" opacity="0.95">PERSONALIZED LONGITUDINAL BASELINES · DEVIATION DETECTION · NOT A DIAGNOSIS</text>
 
   <!-- pulse motif -->
   <g transform="translate(1000,170)" stroke="url(#accent)" fill="none" stroke-width="2.5" stroke-linecap="round">
