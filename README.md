@@ -40,6 +40,7 @@ deviations from *that person's* baseline.**
 - [How It Works](#how-it-works)
 - [Architecture](#architecture)
 - [Project Status](#project-status)
+- [Documentation](#documentation)
 - [Dataset Strategy](#dataset-strategy)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -197,9 +198,9 @@ is implemented, tested, and committed.
 | # | Phase | Status |
 |---|-------|:------:|
 | 0 | Project initialization | ✅ **complete** |
-| 1 | Research & problem definition | ⬜ pending |
-| 2 | Literature review | ⬜ pending |
-| 3 | Dataset discovery & selection | ⬜ pending |
+| 1 | Research & problem definition | ✅ [complete](./docs/problem_definition.md) |
+| 2 | Literature review | ✅ [complete](./docs/literature_review.md) · ⚠️ scoping review, not systematic |
+| 3 | Dataset discovery & selection | ✅ [complete](./docs/dataset_strategy.md) · licences pending |
 | 4 | Data architecture | ⬜ pending |
 | 5 | Data preprocessing pipeline | ⬜ pending |
 | 6 | Population baseline (control) | ⬜ pending |
@@ -232,6 +233,17 @@ is implemented, tested, and committed.
 | 33 | Research paper | ⬜ pending |
 | 34 | GitHub / public release | ⬜ pending |
 | 35 | Final review | ⬜ pending |
+
+---
+
+## Documentation
+
+| Document | Phase | Contents |
+|---|---|---|
+| [`docs/problem_definition.md`](./docs/problem_definition.md) | 1 | Problem, hypothesis, research questions, operational definitions, falsification criteria |
+| [`docs/literature_review.md`](./docs/literature_review.md) | 2 | Scoping review, gap verdicts, **stated novelty threats**, source verification |
+| [`docs/literature_matrix.csv`](./docs/literature_matrix.csv) | 2 | Machine-readable source matrix with a per-entry verification column |
+| [`docs/dataset_strategy.md`](./docs/dataset_strategy.md) | 3 | Candidate datasets, licences, leakage risks, selection rationale |
 
 ---
 
