@@ -9,6 +9,7 @@ Suites executed (Phases 18-29):
 4. Cold-start / few-shot      — how much history personalization needs
 5. Baseline drift             — sustained lifestyle change vs. transient anomaly
 6. Efficiency                 — parameters, latency, model size
+7. Deviation shapes           — is the personalization gain specific to mean shifts?
 
 Every suite writes ``experiments/<suite>/results.json`` with its configuration,
 seed, git commit and environment, so results are traceable and regenerable.
@@ -24,6 +25,7 @@ import torch
 from meyro.evaluation.ablation import AblationStudy
 from meyro.evaluation.cold_start import ColdStartAnalysis
 from meyro.evaluation.cross_subject import CrossSubjectStudy
+from meyro.evaluation.deviation_types import DeviationTypeStudy
 from meyro.evaluation.drift import BaselineDriftAnalysis
 from meyro.evaluation.efficiency import measure_efficiency
 from meyro.evaluation.neural_gap import NeuralGapDiagnosis
@@ -46,7 +48,7 @@ def _print(title: str) -> None:
 
 
 def run_benchmark() -> dict:
-    _print("[1/9] MASTER MODEL COMPARISON (Phase 18)")
+    _print("[1/10] MASTER MODEL COMPARISON (Phase 18)")
     # One epoch budget applied identically to every neural model; sensitivity to it
     # is reported by the neural-gap diagnosis rather than tuned on the test set.
     results = MasterModelBenchmark(n_subjects=15, n_days=60, seed=SEED, epochs=80).run()
@@ -61,7 +63,7 @@ def run_benchmark() -> dict:
 
 
 def run_ablation() -> dict:
-    _print("[2/9] ABLATION STUDY (Phase 19) — trained MEYRO-V2")
+    _print("[2/10] ABLATION STUDY (Phase 19) — trained MEYRO-V2")
     results = AblationStudy(n_subjects=12, n_days=50, seed=SEED, epochs=60).run()
     metadata = results.pop("_metadata")
     for name, metrics in results.items():
@@ -74,7 +76,7 @@ def run_ablation() -> dict:
 
 
 def run_robustness() -> dict:
-    _print("[3/9] ROBUSTNESS STRESS SUITE (Phase 20)")
+    _print("[3/10] ROBUSTNESS STRESS SUITE (Phase 20)")
     suite = RobustnessTestSuite(seed=SEED)
     results = suite.run_all()
     for axis, values in results.items():
@@ -84,7 +86,7 @@ def run_robustness() -> dict:
 
 
 def run_cold_start() -> dict:
-    _print("[4/9] FEW-SHOT / COLD-START CURVE (Phases 21-23)")
+    _print("[4/10] FEW-SHOT / COLD-START CURVE (Phases 21-23)")
     results = ColdStartAnalysis(seed=SEED).run_curve()
     print(json.dumps(results, indent=2))
     save_experiment_results("cold_start", results, seed=SEED)
@@ -92,7 +94,7 @@ def run_cold_start() -> dict:
 
 
 def run_significance() -> dict:
-    _print("[5/9] PERSONALIZATION SIGNIFICANCE (multi-seed, per-subject)")
+    _print("[5/10] PERSONALIZATION SIGNIFICANCE (multi-seed, per-subject)")
     results = PersonalizationSignificanceStudy(seeds=(42, 7, 2024), n_subjects=15, n_days=60).run()
     for method, report in results["per_method"].items():
         ci = report["per_subject_auroc"]
@@ -110,7 +112,7 @@ def run_significance() -> dict:
 
 
 def run_neural_gap() -> dict:
-    _print("[6/9] NEURAL GAP DIAGNOSIS")
+    _print("[6/10] NEURAL GAP DIAGNOSIS")
     results = NeuralGapDiagnosis(n_subjects=15, n_days=60, seed=SEED, epochs=30).run()
     metadata = results.pop("_metadata")
     diagnosis = results.pop("_diagnosis")
@@ -127,7 +129,7 @@ def run_neural_gap() -> dict:
 
 
 def run_cross_subject() -> dict:
-    _print("[7/9] HELD-OUT SUBJECT EVALUATION")
+    _print("[7/10] HELD-OUT SUBJECT EVALUATION")
     results = CrossSubjectStudy(n_subjects=20, n_days=60, seed=SEED, epochs=80).run()
     print(json.dumps(results, indent=2))
     save_experiment_results("cross_subject", results, seed=SEED)
@@ -135,7 +137,7 @@ def run_cross_subject() -> dict:
 
 
 def run_drift() -> dict:
-    _print("[8/9] BASELINE DRIFT (Phase 24)")
+    _print("[8/10] BASELINE DRIFT (Phase 24)")
     analysis = BaselineDriftAnalysis(seed=SEED)
     results = analysis.run()
     results["acute_outlier_probe"] = analysis.acute_outlier_probe()
@@ -144,8 +146,26 @@ def run_drift() -> dict:
     return results
 
 
+def run_deviation_types() -> dict:
+    _print("[10/10] DEVIATION-SHAPE STUDY — mean shift / ramp / variance / spike")
+    results = DeviationTypeStudy(n_subjects=15, n_days=60, seed=SEED, epochs=80).run()
+    metadata = results.pop("_metadata")
+    summary = results.pop("_summary")
+    for shape, metrics in results.items():
+        print(
+            f"{shape:<20} population={metrics['population']['auroc']:<7} "
+            f"personal={metrics['personal']['auroc']:<7} meyro={metrics['meyro_v2']['auroc']:<7} "
+            f"personalization_gain={metrics['personalization_gain_auroc']:+.4f}"
+        )
+    print(json.dumps(summary, indent=2))
+    save_experiment_results(
+        "deviation_types", {"shapes": results, "summary": summary, "metadata": metadata}, seed=SEED
+    )
+    return {"shapes": results, "summary": summary, "metadata": metadata}
+
+
 def run_efficiency() -> dict:
-    _print("[9/9] MODEL EFFICIENCY (Phase 29)")
+    _print("[9/10] MODEL EFFICIENCY (Phase 29)")
     set_global_seed(SEED)
     n_features, window = 3, 7
     x = torch.randn(64, window, n_features)
@@ -194,6 +214,7 @@ def main() -> int:
     run_cross_subject()
     run_drift()
     run_efficiency()
+    run_deviation_types()
     _print("ALL SUITES COMPLETE — artifacts written to experiments/*/results.json")
     return 0
 

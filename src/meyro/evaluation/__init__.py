@@ -3,6 +3,7 @@
 from meyro.evaluation.ablation import AblationStudy
 from meyro.evaluation.cold_start import ColdStartAnalysis
 from meyro.evaluation.cross_subject import CrossSubjectStudy
+from meyro.evaluation.deviation_types import DeviationTypeStudy
 from meyro.evaluation.drift import BaselineDriftAnalysis
 from meyro.evaluation.efficiency import measure_efficiency
 from meyro.evaluation.metrics import detection_metrics
@@ -16,6 +17,7 @@ __all__ = [
     "BaselineDriftAnalysis",
     "ColdStartAnalysis",
     "CrossSubjectStudy",
+    "DeviationTypeStudy",
     "NeuralGapDiagnosis",
     "PersonalizationSignificanceStudy",
     "RobustnessTestSuite",

@@ -80,9 +80,21 @@ class BaselineDriftAnalysis:
         }
 
         if include_meyro:
-            results["MEYRO-V2 (streamed, trained)"] = self._summarise(self._score_meyro(tuned))
+            # Both gate designs are trained and streamed identically, so the only
+            # difference is the slow-memory adaptation rule.
+            results["MEYRO-V2 (score gate, trained)"] = self._summarise(
+                self._score_meyro(tuned, slow_gate_mode="score")
+            )
+            results["MEYRO-V2.1 (persistence-confirmed gate, trained)"] = self._summarise(
+                self._score_meyro(tuned, slow_gate_mode="persistence")
+            )
         results["interpretation"] = {
             "persistent_false_alarm_rate": "fraction of post-drift steady-state days still alerted (lower is better)",
+            "note": (
+                "V2.1 differs from V2 only in the slow-memory gate: V2 blocks adaptation "
+                "whenever a deviation is flagged, V2.1 permits it once the causal "
+                "persistence head confirms the deviation is sustained."
+            ),
             "adaptation_lag_days": "days from drift onset to the LAST alert; equals remaining horizon if it never adapts (lower is better)",
             "baseline_shift_std_total": "total baseline centre movement over the evaluation period, in pre-drift std units (context, not a score)",
             "acute_outlier_probe": "baseline displacement after one 3x observation; measures premature adaptation (lower is better)",
@@ -201,7 +213,7 @@ class BaselineDriftAnalysis:
             float((post["timestamp"].iloc[last_alert_index] - drift_onset).total_seconds() / 86400.0), 2
         )
 
-    def _score_meyro(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _score_meyro(self, df: pd.DataFrame, slow_gate_mode: str = "score") -> pd.DataFrame:
         """Trains MEYRO-V2 on pre-drift history and streams it across the drift.
 
         This is the only setting in which adaptation can actually be observed:
@@ -231,6 +243,7 @@ class BaselineDriftAnalysis:
             quality_dim=len(self.features),
             hidden_dim=16,
             num_layers=2,
+            slow_gate_mode=slow_gate_mode,
         )
         trainer = MEYROV2Trainer(model, epochs=25, seed=self.seed)
         trainer.standardizer = standardizer

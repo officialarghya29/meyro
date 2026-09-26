@@ -21,6 +21,7 @@ MEYRO-V2 (current)
 
 from __future__ import annotations
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -160,6 +161,9 @@ class MEYROModelV2(nn.Module):
         slow_rate: float = 0.03,
         persistence_hidden: int = 16,
         anomaly_gate_scale: float = 4.0,
+        slow_gate_mode: str = "score",
+        persistence_threshold: float = 0.5,
+        persistence_band: float = 0.05,
     ) -> None:
         super().__init__()
         if not 0.0 < slow_rate < fast_rate <= 1.0:
@@ -167,12 +171,27 @@ class MEYROModelV2(nn.Module):
                 "Require 0 < slow_rate < fast_rate <= 1 for distinct timescales; "
                 f"received slow_rate={slow_rate}, fast_rate={fast_rate}"
             )
+        if slow_gate_mode not in {"score", "persistence"}:
+            raise ValueError(
+                f"slow_gate_mode must be 'score' or 'persistence', received {slow_gate_mode!r}"
+            )
+        if not 0.0 <= persistence_threshold < 1.0:
+            raise ValueError(
+                f"persistence_threshold must lie in [0, 1), received {persistence_threshold}"
+            )
+        if persistence_band <= 0.0:
+            raise ValueError(f"persistence_band must be > 0, received {persistence_band}")
 
         self.hidden_dim = hidden_dim
         self.input_dim = input_dim
         self.fast_rate = fast_rate
         self.slow_rate = slow_rate
         self.anomaly_gate_scale = anomaly_gate_scale
+        self.slow_gate_mode = slow_gate_mode
+        self.persistence_threshold = persistence_threshold
+        self.persistence_band = persistence_band
+        # Set by calibrate_anomaly_threshold; used by forward_adaptive.
+        self.anomaly_confirm_threshold: float | None = None
 
         # Context encoder
         self.context_encoder = nn.Sequential(
@@ -301,15 +320,204 @@ class MEYROModelV2(nn.Module):
         u_feat = torch.cat([deviation_emb, q_emb], dim=-1)
         uncertainty = self.uncertainty_head(u_feat)
 
-        # Anomaly- and quality-gated dual-timescale memory update
+        # ------------------------------------------------------ memory update
+        # The FAST memory tracks recent state and is always anomaly-gated, so an
+        # acute excursion cannot drag it around.
+        #
+        # The SLOW memory represents the established baseline, and its gate is the
+        # design decision that separates V2 from V2.1:
+        #
+        #   "score"       gate = exp(-k*A) * q        (V2)
+        #       Adaptation is blocked exactly when a deviation is flagged, so a
+        #       *sustained* change is alerted on forever and the baseline never
+        #       re-establishes. This is a documented failure (see docs/benchmark_report.md).
+        #
+        #   "persistence" gate = confirm(R_t) * q     (V2.1, opt-in)
+        #       Adaptation is blocked for a transient excursion but permitted once
+        #       the deviation is *confirmed persistent* by the (causal) persistence
+        #       head. This is the threshold-confirmed migration rule.
+        #
+        #       It is NOT the default and it is NOT a fix. Measured on the drift
+        #       benchmark it is indistinguishable from the "score" gate (92.96% vs
+        #       92.96% persistent false alarms, 0.0 baseline movement in both): the
+        #       persistence head does not separate its normal and drift regimes
+        #       (0.33 vs 0.37), so the calibrated threshold is never crossed and the
+        #       mechanism stays inert. Documented as a negative result in
+        #       docs/benchmark_report.md rather than presented as a repair.
         e_t = e_seq[:, -1]
         q_mean = torch.mean(quality, dim=-1, keepdim=True)
-        gate = torch.exp(-self.anomaly_gate_scale * anomaly) * q_mean
+        fast_gate = torch.exp(-self.anomaly_gate_scale * anomaly) * q_mean
 
-        fast_memory = (1.0 - self.fast_rate * gate) * baseline_fast + (self.fast_rate * gate) * e_t
-        slow_memory = (1.0 - self.slow_rate * gate) * baseline_slow + (self.slow_rate * gate) * e_t
+        # A hard threshold on a head whose outputs cluster in a narrow band is
+        # useless: nothing ever crosses it. Instead the gate ramps across a
+        # defined band above a threshold that is *calibrated* on the subject's
+        # own normal history (see calibrate_persistence_threshold).
+        confirmed = torch.clamp(
+            (persistence - self.persistence_threshold) / self.persistence_band, 0.0, 1.0
+        )
+        slow_gate = (
+            confirmed * q_mean
+            if self.slow_gate_mode == "persistence"
+            else fast_gate
+        )
+
+        fast_memory = (1.0 - self.fast_rate * fast_gate) * baseline_fast + (self.fast_rate * fast_gate) * e_t
+        slow_memory = (1.0 - self.slow_rate * slow_gate) * baseline_slow + (self.slow_rate * slow_gate) * e_t
 
         return anomaly, uncertainty, persistence, deviation_emb, fast_memory, slow_memory
+
+    def _calibration_baselines(
+        self,
+        batch,
+        slow_memories: dict[str, torch.Tensor] | None,
+        fast_memories: dict[str, torch.Tensor] | None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Per-window baselines for calibration, matching the deployment regime.
+
+        Calibrating against zero memories while evaluating against subject-specific
+        memories puts the threshold in a different regime from the scores it must
+        gate, which makes the rule meaningless. Memories are therefore expanded to
+        per-window tensors exactly as they are at inference.
+        """
+        from meyro.data.windows import expand_subject_memories
+
+        if slow_memories is None or fast_memories is None:
+            zeros = torch.zeros(len(batch), self.hidden_dim)
+            return zeros, zeros
+        slow = expand_subject_memories(slow_memories, batch, self.hidden_dim, default="cohort_mean")
+        fast = expand_subject_memories(fast_memories, batch, self.hidden_dim, default="cohort_mean")
+        return slow, fast
+
+    def calibrate_persistence_threshold(
+        self,
+        batch,
+        slow_memories: dict[str, torch.Tensor] | None = None,
+        fast_memories: dict[str, torch.Tensor] | None = None,
+        *,
+        quantile: float = 0.99,
+    ) -> float:
+        """Sets the slow-gate threshold from the subject's own normal history.
+
+        Uses only calibration windows, so no evaluation information enters the
+        decision rule. The threshold is the ``quantile`` of persistence observed
+        on normal data: a deviation must be more persistent than the subject's
+        normal fluctuation before the baseline may migrate. This mirrors the
+        statistical baselines' self-calibrating ``mean + 3 sigma`` rule.
+
+        Returns the threshold that was set.
+        """
+        if not 0.0 < quantile < 1.0:
+            raise ValueError(f"quantile must lie in (0, 1), received {quantile}")
+
+        x_t, ctx_t, qual_t = batch.tensors()
+        slow, fast = self._calibration_baselines(batch, slow_memories, fast_memories)
+        self.eval()
+        persistences: list[float] = []
+        with torch.no_grad():
+            for start in range(0, len(x_t), 64):
+                window = x_t[start : start + 64]
+                context = ctx_t[start : start + 64]
+                quality = qual_t[start : start + 64]
+                _a, _u, persistence, _d, _f, _s = self.forward(
+                    window,
+                    context,
+                    slow[start : start + 64],
+                    fast[start : start + 64],
+                    quality,
+                )
+                persistences.extend(persistence.squeeze(-1).tolist())
+
+        threshold = float(np.quantile(np.asarray(persistences), quantile))
+        self.persistence_threshold = threshold
+        return threshold
+
+    def calibrate_anomaly_threshold(
+        self,
+        batch,
+        slow_memories: dict[str, torch.Tensor] | None = None,
+        fast_memories: dict[str, torch.Tensor] | None = None,
+        *,
+        quantile: float = 0.995,
+    ) -> float:
+        """Sets the streak-activation threshold for confirmed slow-memory migration.
+
+        Derived from the subject's own calibration windows, so it is a personal
+        decision rule and cannot leak evaluation information.
+        """
+        if not 0.0 < quantile < 1.0:
+            raise ValueError(f"quantile must lie in (0, 1), received {quantile}")
+
+        x_t, ctx_t, qual_t = batch.tensors()
+        slow, fast = self._calibration_baselines(batch, slow_memories, fast_memories)
+        self.eval()
+        anomalies: list[float] = []
+        with torch.no_grad():
+            for start in range(0, len(x_t), 64):
+                window = x_t[start : start + 64]
+                context = ctx_t[start : start + 64]
+                quality = qual_t[start : start + 64]
+                anomaly, _u, _p, _d, _f, _s = self.forward(
+                    window,
+                    context,
+                    slow[start : start + 64],
+                    fast[start : start + 64],
+                    quality,
+                )
+                anomalies.extend(anomaly.squeeze(-1).tolist())
+
+        threshold = float(np.quantile(np.asarray(anomalies), quantile))
+        self.anomaly_confirm_threshold = threshold
+        return threshold
+
+    def forward_adaptive(
+        self,
+        x_seq: torch.Tensor,
+        context: torch.Tensor,
+        baseline_slow: torch.Tensor,
+        baseline_fast: torch.Tensor,
+        quality: torch.Tensor,
+        streak: torch.Tensor,
+        *,
+        patience: int = 4,
+        confirm_threshold: float | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Forward pass with streak-confirmed slow-memory migration.
+
+        The established baseline may only migrate once the deviation has been
+        continuously present for ``patience`` consecutive windows. A single
+        extreme observation cannot reach that count, so it cannot redefine the
+        baseline; a sustained lifestyle change eventually does. The fast memory
+        and the anomaly score are unaffected, so detection sensitivity is
+        preserved during the confirmation period.
+
+        Returns ``(anomaly, uncertainty, persistence, fast_memory, slow_memory, new_streak)``.
+        """
+        if patience < 1:
+            raise ValueError(f"patience must be >= 1, received {patience}")
+
+        threshold = (
+            self.anomaly_confirm_threshold if confirm_threshold is None else confirm_threshold
+        )
+        if threshold is None:
+            raise ValueError(
+                "confirm_threshold is unset; call calibrate_anomaly_threshold first "
+                "or pass confirm_threshold explicitly"
+            )
+
+        anomaly, uncertainty, persistence, _d, fast_next, slow_next = self.forward(
+            x_seq, context, baseline_slow, baseline_fast, quality
+        )
+
+        elevated = anomaly >= threshold
+        new_streak = torch.where(
+            elevated,
+            streak + 1.0,
+            torch.zeros_like(streak),
+        )
+        confirmed = new_streak >= float(patience)
+        migrated_slow = torch.where(confirmed, slow_next, baseline_slow)
+
+        return anomaly, uncertainty, persistence, fast_next, migrated_slow, new_streak
 
     # --------------------------------------------------------------- adaptation
     def adapt_sequence(

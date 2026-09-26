@@ -70,6 +70,19 @@ After a sustained lifestyle change, MEYRO-V2 keeps alerting on **93.0%** of stea
 MEYRO-V1 reaches `0.9680`, MEYRO-V2 `0.9179`, versus `0.9949` for a robust statistical personal baseline. Diagnosis below: this is **not** under-training and **not** adaptation — see [diagnosis](#-diagnosing-the-neural-gap).
 
 </td></tr>
+<tr><td width="50%" valign="top">
+
+**📐 The advantage is not an artefact of the deviation shape**
+
+The benchmark injects one shape (a sustained mean shift), which a robust statistic is near-optimal for. Re-running across four shapes, personalization wins in **every** one — and by the *most* on the shapes where robust mean statistics are weakest: variance increase **+0.1108**, gradual ramp **+0.0947**. See [deviation shapes](#-deviation-shape-study).
+
+</td><td width="50%" valign="top">
+
+**🧪 The proposed drift fix does not work — reported as such**
+
+A persistence-confirmed migration rule (MEYRO-V2.1) was implemented to repair the drift failure. Measured: **`93.0%` vs `93.0%`**, with `0.0` baseline movement in both — the persistence head does not separate its regimes, so the calibrated threshold is never crossed. The mechanism is inert; it is **not** enabled by default.
+
+</td></tr>
 </table>
 
 ---
@@ -208,7 +221,7 @@ Why does the learned model lose to a robust statistical baseline? Instead of gue
 
 1. **Adaptation is not the cause.** Freezing the memory changes AUROC by `+0.0008`. My own initial hypothesis — that the memory absorbs sustained deviations and blurs detection — is **falsified**.
 2. **Under-training was real.** 30 → 120 epochs gains `+0.0397` AUROC and lifts score separation from `0.076` to `0.483`. The benchmark epoch budget was therefore raised to 80 for every neural model, applied identically.
-3. **A residual gap of `0.0903` AUROC remains.** It is not adaptation and not training time. The most plausible explanation is that the injected deviation is a sustained mean shift, which robust per-subject statistics model almost optimally, leaving little for a learned memory to add — on *this synthetic generator*. Resolving this requires real longitudinal data.
+3. **A residual gap of `0.0903` AUROC remains.** It is not adaptation and not training time. The most plausible explanation is that the injected deviation is a sustained mean shift, which robust per-subject statistics model almost optimally, leaving little for a learned memory to add — on *this synthetic generator*. The [deviation-shape study](#-deviation-shape-study) tests exactly that explanation and only **partly** supports it: the statistical advantage grows for ramp/dispersion shapes as predicted, but the neural deficit does **not** disappear for spike or ramp shapes either, so the shape alone does not account for the gap. Resolving it requires real longitudinal data.
 
 <div align="center">
 <img src="./assets/neural_gap_diagnosis.png" alt="Neural gap diagnosis: epoch budget and adaptation cost" width="88%"/>
@@ -238,18 +251,44 @@ A deployed system must work for people it never trained on. Subjects are split 1
 
 The hardest longitudinal case: a *sustained* lifestyle change should eventually stop alerting, while a *single* acute outlier must not move the baseline. Thresholds are self-calibrating (`pre-drift mean + 3σ`) from pre-drift data only.
 
-| Method | Persistent false alarms after drift | Days to final alert |
-|---|---|---|
-| Personal Baseline (Adaptive) | **`30.0%`** | `41.0` |
-| Personal Baseline (Static) | `61.5%` | `41.0` |
-| **MEYRO-V2 (streamed, trained)** | **`93.0%`** ← worst | `41.0` |
+| Method | Persistent false alarms after drift | Baseline movement (σ) | Days to final alert |
+|---|---|---|---|
+| Personal Baseline (Adaptive) | **`30.0%`** | `1.25` | `41.0` |
+| Personal Baseline (Static) | `61.5%` | `0.00` | `41.0` |
+| MEYRO-V2 (score gate, trained) | **`93.0%`** ← worst | `0.00` | `41.0` |
+| MEYRO-V2.1 (persistence-confirmed gate) | **`93.0%`** — the fix changes nothing | `0.00` | `41.0` |
 
-**This is a failure, and the mechanism is clear.** MEYRO's memory gate is `α ∝ exp(−4·A_t)`, which suppresses adaptation *precisely when a deviation is being flagged*. A sustained change is therefore flagged forever: the gate blocks the very adaptation that would absorb it. The statistical adaptive baseline instead uses a `z < 2.5` criterion and adapts.
+**This is a failure, and the mechanism is clear.** MEYRO's memory gate is `α ∝ exp(−4·A_t)`, which suppresses adaptation *precisely when a deviation is being flagged*. A sustained change is therefore flagged forever: the gate blocks the very adaptation that would absorb it. The statistical adaptive baseline instead uses a `z < 2.5` criterion and adapts. The `baseline movement = 0.00` column shows the slow baseline never actually moved in either MEYRO variant.
 
-Acute-outlier probe: a single 3× observation moves the baseline by at most **0.43 σ**, so MEYRO does not over-adapt to spikes — it under-adapts to sustained change. A threshold-confirmed slow-migration rule is the natural fix and is **not** implemented.
+**The obvious fix was implemented and it does not work.** MEYRO-V2.1 replaces the score gate with a persistence-confirmed one: the established baseline may migrate only after the deviation has been continuously flagged for `patience` consecutive windows. This required calibrating the head's threshold on the subject's own normal history, because the head's outputs cluster in a narrow band (`≈0.32`–`0.40`) that no hard-coded threshold ever crosses. After calibration the mechanism still never fires: the head separates its normal and drift regimes by about `0.04`, which is not enough to discriminate them. V2.1 is therefore **opt-in, not the default**, and is documented as a negative result instead of being presented as a repair.
+
+Acute-outlier probe: a single 3× observation moves the baseline by at most **0.43 σ** (`0.19 σ` mean), so MEYRO does not over-adapt to spikes — it under-adapts to sustained change.
 
 <div align="center">
 <img src="./assets/baseline_drift.png" alt="Persistent false alarms after a sustained lifestyle change" width="82%"/>
+</div>
+
+---
+
+## 🧭 Deviation-Shape Study
+
+The master benchmark injects a single deviation shape: a sustained shift in the *mean* of several features. That choice matters — a robust per-subject median/IQR statistic is close to optimal for exactly that kind of deviation, so the benchmark could have been measuring the generator rather than the methods.
+
+Four shapes are therefore generated from the same seeds and evaluated on identical splits. Each keeps the subject's idiosyncratic normal distribution; only the shape of the injected deviation changes.
+
+| Deviation shape | What changes | Population AUROC | Personal AUROC | MEYRO-V2 AUROC | Personal − Population |
+|---|---|---|---|---|---|
+| `mean_shift` | sustained level change | `0.9394` | `0.9949` | `0.9209` | **`+0.0555`** |
+| `gradual_ramp` | linear onset, level change only late | `0.7015` | `0.7962` | `0.7543` | **`+0.0947`** |
+| `variance_increase` | mean preserved, dispersion expanded | `0.7004` | `0.8112` | `0.5784` | **`+0.1108`** |
+| `point_spike` | a single sharp day (1.6% prevalence) | `0.9325` | `0.9982` | `0.7616` | **`+0.0657`** |
+
+**Result: the personalization finding generalizes.** The gain is positive in all four shapes (min `+0.0555`, max `+0.1108`), so it is not an artefact of the mean-shift generator. The ordering is also informative: the advantage is *smallest* for the two shapes a robust mean statistic already handles almost perfectly (`mean_shift`, `point_spike`, population AUROC `≥0.93`) and *largest* for the two it handles worst (`gradual_ramp`, `variance_increase`, population AUROC `≈0.70`). That is the expected signature of a genuine personalization effect rather than a generator artefact.
+
+It also sharpens the negative result: MEYRO-V2's deficit is worst exactly where the deviation is a *dispersion* change (`0.5784`), where a learned deviation module provides no advantage over a personal spread estimate.
+
+<div align="center">
+<img src="./assets/deviation_types.png" alt="AUROC by deviation shape and the personalization gain in each" width="92%"/>
 </div>
 
 ---
@@ -352,13 +391,13 @@ pip install -e .
 
 ### 2. Test
 ```bash
-pytest -q          # 63 tests: unit, API, leakage, causality, determinism
+pytest -q          # 69 tests: unit, API, leakage, causality, determinism
 ruff check .
 ```
 
 ### 3. Reproduce every result
 ```bash
-python scripts/run_full_evaluation.py   # 9 suites -> experiments/*/results.json
+python scripts/run_full_evaluation.py   # 10 suites -> experiments/*/results.json
 python scripts/generate_figures.py      # figures -> assets/*.png
 ```
 
@@ -398,10 +437,10 @@ Reported deliberately, per the project's research-integrity rules.
 
 1. **Synthetic data only.** All results come from a seeded generator. Nothing here transfers to real physiology until run on a licensed longitudinal dataset (GLOBEM is credentialed-access).
 2. **The learned models lose to a robust statistical personal baseline** (`0.9680` / `0.9179` vs `0.9949`). Diagnosed as *not* adaptation and *not* under-training (see above); the residual `0.0903` AUROC gap is unexplained and unresolved.
-3. **MEYRO-V2 fails baseline drift** (`93.0%` persistent false alarms). Mechanism identified, fix not implemented.
+3. **MEYRO-V2 fails baseline drift** (`93.0%` persistent false alarms). Mechanism identified; the persistence-confirmed fix (V2.1) was implemented and **measured to change nothing** (`93.0%` → `93.0%`). The failure stands unresolved.
 4. **Persistence gating hurts detection** (`−0.0217 AUROC`) and is therefore reported, not applied.
 5. **Dual-timescale memory adds only `+0.0037 AUROC`** — within noise on this cohort.
-6. **Single architecture size, single generator family.** One hidden width, one window size, one deviation type (sustained mean shift).
+6. **Single architecture size and single generator family.** One hidden width, one window size. Deviation *shape* is now varied (four shapes, above), but every result still comes from one synthetic generator; no real longitudinal dataset has been run.
 7. **No subgroup/fairness analysis.** Demographic metadata is absent from the synthetic data; any fairness claim would be unsupported.
 8. **Latency unoptimised.** MEYRO-V2 is the slowest model measured (~2.6× MEYRO-V1) and single-threaded by design for determinism.
 9. **No regulatory assessment.** HIPAA/GDPR/DPDP compliance has not been evaluated and is not claimed.
@@ -419,18 +458,20 @@ meyro/
 │   ├── ablation_auroc.png / neural_gap_diagnosis.png
 │   ├── significance_forest.png / cross_subject.png
 │   ├── baseline_drift.png / robustness_stress.png / cold_start_curve.png
+│   ├── deviation_types.png               # deviation-shape generalization
 │   └── meyro_concept_timeline.png        # illustrative schematic
 ├── docs/                      # Paper draft, model card, protocol, literature
 ├── experiments/               # Committed result artifacts (JSON, with seed + git commit)
 │   ├── master_benchmark/  ablation/  robustness/  cold_start/
-│   └── significance/  neural_gap/  cross_subject/  drift/  efficiency/
+│   ├── significance/  neural_gap/  cross_subject/  drift/  efficiency/
+│   └── deviation_types/       # personalization vs deviation shape
 ├── frontend/                  # Next.js dashboard
 ├── scripts/                   # Reproducible runners
 ├── src/meyro/
 │   ├── anomaly/  baselines/  data/  evaluation/  experiments/
 │   ├── fusion/   models/     personalization/    preprocessing/
 │   ├── training/ uncertainty/ utils/
-└── tests/                     # 63 tests incl. causality, leakage, determinism
+└── tests/                     # 69 tests incl. causality, leakage, determinism
 ```
 
 ---

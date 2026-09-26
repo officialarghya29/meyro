@@ -1,0 +1,208 @@
+{
+  "environment": {
+    "git_commit": "11acc8a",
+    "machine": "x86_64",
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "results": {
+    "metadata": {
+      "calibration_days": 21,
+      "deviation_types": [
+        "mean_shift",
+        "gradual_ramp",
+        "variance_increase",
+        "point_spike"
+      ],
+      "epochs": 80,
+      "n_days_per_subject": 60,
+      "n_subjects": 15,
+      "seed": 42
+    },
+    "shapes": {
+      "gradual_ramp": {
+        "meyro_gain_over_population_auroc": 0.0528,
+        "meyro_v2": {
+          "auprc": 0.3734,
+          "auroc": 0.7543,
+          "f1": 0.3136,
+          "fpr_at_target_sensitivity": 0.6061,
+          "n_samples": 495.0,
+          "precision": 0.1918,
+          "prevalence": 0.1434,
+          "recall": 0.8592,
+          "specificity": 0.3939,
+          "threshold": 0.124618
+        },
+        "n_evaluation_windows": 495,
+        "personal": {
+          "auprc": 0.5949,
+          "auroc": 0.7962,
+          "f1": 0.3306,
+          "fpr_at_target_sensitivity": 0.559,
+          "n_samples": 495.0,
+          "precision": 0.2047,
+          "prevalence": 0.1434,
+          "recall": 0.8592,
+          "specificity": 0.441,
+          "threshold": 0.86052
+        },
+        "personalization_gain_auroc": 0.0947,
+        "population": {
+          "auprc": 0.4157,
+          "auroc": 0.7015,
+          "f1": 0.2912,
+          "fpr_at_target_sensitivity": 0.6769,
+          "n_samples": 495.0,
+          "precision": 0.1753,
+          "prevalence": 0.1434,
+          "recall": 0.8592,
+          "specificity": 0.3231,
+          "threshold": 0.567701
+        },
+        "prevalence": 0.1434
+      },
+      "mean_shift": {
+        "meyro_gain_over_population_auroc": -0.0185,
+        "meyro_v2": {
+          "auprc": 0.6556,
+          "auroc": 0.9209,
+          "f1": 0.674,
+          "fpr_at_target_sensitivity": 0.1156,
+          "n_samples": 495.0,
+          "precision": 0.5545,
+          "prevalence": 0.1434,
+          "recall": 0.8592,
+          "specificity": 0.8844,
+          "threshold": 0.531001
+        },
+        "n_evaluation_windows": 495,
+        "personal": {
+          "auprc": 0.9658,
+          "auroc": 0.9949,
+          "f1": 0.8971,
+          "fpr_at_target_sensitivity": 0.0094,
+          "n_samples": 495.0,
+          "precision": 0.9385,
+          "prevalence": 0.1434,
+          "recall": 0.8592,
+          "specificity": 0.9906,
+          "threshold": 2.455654
+        },
+        "personalization_gain_auroc": 0.0555,
+        "population": {
+          "auprc": 0.7792,
+          "auroc": 0.9394,
+          "f1": 0.5701,
+          "fpr_at_target_sensitivity": 0.1934,
+          "n_samples": 495.0,
+          "precision": 0.4266,
+          "prevalence": 0.1434,
+          "recall": 0.8592,
+          "specificity": 0.8066,
+          "threshold": 1.068948
+        },
+        "prevalence": 0.1434
+      },
+      "point_spike": {
+        "meyro_gain_over_population_auroc": -0.1709,
+        "meyro_v2": {
+          "auprc": 0.0526,
+          "auroc": 0.7616,
+          "f1": 0.0711,
+          "fpr_at_target_sensitivity": 0.3737,
+          "n_samples": 495.0,
+          "precision": 0.037,
+          "prevalence": 0.0162,
+          "recall": 0.875,
+          "specificity": 0.6263,
+          "threshold": 0.220922
+        },
+        "n_evaluation_windows": 495,
+        "personal": {
+          "auprc": 0.8835,
+          "auroc": 0.9982,
+          "f1": 0.8889,
+          "fpr_at_target_sensitivity": 0.0041,
+          "n_samples": 495.0,
+          "precision": 0.8,
+          "prevalence": 0.0162,
+          "recall": 1.0,
+          "specificity": 0.9959,
+          "threshold": 2.711283
+        },
+        "personalization_gain_auroc": 0.0657,
+        "population": {
+          "auprc": 0.3606,
+          "auroc": 0.9325,
+          "f1": 0.1972,
+          "fpr_at_target_sensitivity": 0.115,
+          "n_samples": 495.0,
+          "precision": 0.1111,
+          "prevalence": 0.0162,
+          "recall": 0.875,
+          "specificity": 0.885,
+          "threshold": 1.099014
+        },
+        "prevalence": 0.0162
+      },
+      "variance_increase": {
+        "meyro_gain_over_population_auroc": -0.122,
+        "meyro_v2": {
+          "auprc": 0.2381,
+          "auroc": 0.5784,
+          "f1": 0.3191,
+          "fpr_at_target_sensitivity": 0.7543,
+          "n_samples": 495.0,
+          "precision": 0.1963,
+          "prevalence": 0.1778,
+          "recall": 0.8523,
+          "specificity": 0.2457,
+          "threshold": 0.11241
+        },
+        "n_evaluation_windows": 495,
+        "personal": {
+          "auprc": 0.6075,
+          "auroc": 0.8112,
+          "f1": 0.4032,
+          "fpr_at_target_sensitivity": 0.5135,
+          "n_samples": 495.0,
+          "precision": 0.2641,
+          "prevalence": 0.1778,
+          "recall": 0.8523,
+          "specificity": 0.4865,
+          "threshold": 0.851786
+        },
+        "personalization_gain_auroc": 0.1108,
+        "population": {
+          "auprc": 0.3901,
+          "auroc": 0.7004,
+          "f1": 0.3856,
+          "fpr_at_target_sensitivity": 0.5553,
+          "n_samples": 495.0,
+          "precision": 0.2492,
+          "prevalence": 0.1778,
+          "recall": 0.8523,
+          "specificity": 0.4447,
+          "threshold": 0.722799
+        },
+        "prevalence": 0.1778
+      }
+    },
+    "summary": {
+      "holds_across_all_shapes": true,
+      "interpretation": "A positive gain in every shape means the personalization finding is not an artefact of the mean-shift generator.",
+      "max_gain": 0.1108,
+      "min_gain": 0.0555,
+      "personalization_gain_by_shape": {
+        "gradual_ramp": 0.0947,
+        "mean_shift": 0.0555,
+        "point_spike": 0.0657,
+        "variance_increase": 0.1108
+      }
+    }
+  },
+  "seed": 42,
+  "suite": "deviation_types",
+  "timestamp": "2026-09-26T17:42:44.970157+00:00"
+}

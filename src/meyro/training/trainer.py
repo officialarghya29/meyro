@@ -160,9 +160,19 @@ class MEYROTrainer(_BaseTrainer):
 class MEYROV2Trainer(_BaseTrainer):
     """Trains MEYRO-V2 (dual memory + persistence) on calibration history."""
 
-    def __init__(self, model: MEYROModelV2, **kwargs) -> None:
+    def __init__(
+        self,
+        model: MEYROModelV2,
+        persistence_quantile: float = 0.99,
+        anomaly_quantile: float = 0.995,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.model = model
+        self.persistence_quantile = persistence_quantile
+        self.anomaly_quantile = anomaly_quantile
+        self.calibrated_persistence_threshold: float | None = None
+        self.calibrated_anomaly_threshold: float | None = None
 
     def fit_windows(self, batch: WindowBatch) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
         """Trains on standardised calibration windows; returns ``(fast, slow)`` memories."""
@@ -214,9 +224,25 @@ class MEYROV2Trainer(_BaseTrainer):
             optimizer.step()
 
         self.model.eval()
+
+        # Calibrate the persistence-confirmed slow-gate threshold on the subject's
+        # own normal history. Without this the gate's default threshold sits above
+        # every value the head produces and the mechanism is inert.
         slow_memories = subject_mean_baseline(self.model.encode_observation, batch, self.model.hidden_dim)
         # Cold start: the fast memory begins where the slow memory does.
         fast_memories = {k: v.clone() for k, v in slow_memories.items()}
+
+        # Thresholds are calibrated against the *same* per-subject memories used at
+        # evaluation time. Using zero baselines here would place the threshold in a
+        # different regime from the scores it must gate.
+        if self.model.slow_gate_mode == "persistence":
+            self.calibrated_persistence_threshold = self.model.calibrate_persistence_threshold(
+                batch, slow_memories, fast_memories, quantile=self.persistence_quantile
+            )
+        self.calibrated_anomaly_threshold = self.model.calibrate_anomaly_threshold(
+            batch, slow_memories, fast_memories, quantile=self.anomaly_quantile
+        )
+
         return fast_memories, slow_memories
 
     def fit_calibration_cohort(

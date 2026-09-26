@@ -64,6 +64,63 @@ def test_meyro_v2_forward_shapes_and_memory_gating():
     assert torch.all((persistence >= 0) & (persistence <= 1))
 
 
+def test_v2_default_slow_gate_is_the_documented_score_gate():
+    """The measured-ineffective persistence gate must not be the default.
+
+    V2.1's persistence-confirmed gate was implemented to repair the drift failure
+    and measured to be indistinguishable from the score gate. Defaulting to an
+    unvalidated mechanism would silently change what "MEYRO-V2" means, so the
+    default stays `score` and V2.1 is opt-in.
+    """
+    model = MEYROModelV2(input_dim=3, context_dim=2, quality_dim=3, hidden_dim=8, num_layers=1)
+    assert model.slow_gate_mode == "score"
+    assert model.anomaly_confirm_threshold is None
+
+
+def test_v2_rejects_unknown_slow_gate_mode():
+    try:
+        MEYROModelV2(input_dim=3, hidden_dim=8, slow_gate_mode="telepathy")
+    except ValueError as exc:
+        assert "slow_gate_mode" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("Expected ValueError for an unknown slow_gate_mode")
+
+
+def test_forward_adaptive_requires_a_calibrated_threshold():
+    """Streaming without calibration would silently compare against None."""
+    model = MEYROModelV2(input_dim=3, context_dim=2, quality_dim=3, hidden_dim=8, num_layers=1)
+    x = torch.randn(2, 7, 3)
+    zeros = torch.zeros(2, 8)
+    try:
+        model.forward_adaptive(x, torch.zeros(2, 2), zeros, zeros, torch.ones(2, 3), torch.zeros(2, 1))
+    except ValueError as exc:
+        assert "confirm_threshold" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("Expected ValueError when no threshold is calibrated")
+
+
+def test_forward_adaptive_holds_the_baseline_until_patience_is_reached():
+    """The established baseline must not migrate before `patience` windows."""
+    torch.manual_seed(3)
+    model = MEYROModelV2(input_dim=3, context_dim=2, quality_dim=3, hidden_dim=8, num_layers=1)
+    model.eval()
+
+    x = torch.randn(1, 7, 3) * 6.0  # a large excursion
+    ctx = torch.zeros(1, 2)
+    slow = torch.zeros(1, 8)
+    fast = torch.zeros(1, 8)
+    qual = torch.ones(1, 3)
+    streak = torch.zeros(1, 1)
+
+    with torch.no_grad():
+        for _ in range(2):  # fewer than patience
+            _a, _u, _r, _f, slow_out, streak = model.forward_adaptive(
+                x, ctx, slow, fast, qual, streak, patience=4, confirm_threshold=-1.0
+            )
+            assert torch.allclose(slow_out, slow), "baseline migrated before confirmation"
+    assert float(streak.squeeze()) == 2.0
+
+
 def test_v2_rejects_invalid_timescale_ordering():
     try:
         MEYROModelV2(input_dim=3, hidden_dim=8, fast_rate=0.01, slow_rate=0.5)

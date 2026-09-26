@@ -169,22 +169,20 @@ def cold_start_figure() -> None:
 
 def drift_figure() -> None:
     results = load_artifact("drift")
-    methods = [
-        key
-        for key in results
-        if key
-        in {
-            "Personal Baseline (Static)",
-            "Personal Baseline (Adaptive)",
-            "MEYRO-V2 (streamed, trained)",
-        }
+    preferred = [
+        "Personal Baseline (Static)",
+        "Personal Baseline (Adaptive)",
+        "MEYRO-V2 (score gate, trained)",
+        "MEYRO-V2.1 (persistence-confirmed gate, trained)",
     ]
+    methods = [key for key in preferred if key in results]
     values = [results[m]["persistent_false_alarm_rate"] * 100 for m in methods]
     colors = [MINT if "MEYRO" in m else CORAL if "Static" in m else CYAN for m in methods]
 
     fig, ax = _frame(
         "BASELINE DRIFT — PERSISTENT FALSE ALARMS",
-        "Share of post-drift steady-state days still alerted after a sustained lifestyle change",
+        "Post-drift steady-state days still alerted. V2.1's persistence-confirmed gate is "
+        "indistinguishable from V2's score gate: a measured, reported failure.",
     )
     bars = ax.bar(methods, values, color=colors, width=0.55, edgecolor="#ffffff", linewidth=0.4)
     ax.set_ylabel("Persistent false-alarm rate (%) — lower is better", fontsize=11, color=CYAN)
@@ -366,6 +364,70 @@ def cross_subject_figure() -> None:
     plt.close(fig)
 
 
+def deviation_types_figure() -> None:
+    results = load_artifact("deviation_types")["shapes"]
+    shapes = list(results.keys())
+    population = [results[s]["population"]["auroc"] for s in shapes]
+    personal = [results[s]["personal"]["auroc"] for s in shapes]
+    meyro = [results[s]["meyro_v2"]["auroc"] for s in shapes]
+
+    x = np.arange(len(shapes))
+    width = 0.26
+
+    fig, (ax, gain_ax) = plt.subplots(
+        2, 1, figsize=(12, 8), dpi=300, gridspec_kw={"height_ratios": [2, 1]}
+    )
+    fig.patch.set_facecolor(NAVY)
+    ax.set_facecolor(PANEL)
+    gain_ax.set_facecolor(PANEL)
+
+    ax.bar(x - width, population, width, label="Population baseline", color=CORAL, edgecolor="#ffffff", linewidth=0.4)
+    ax.bar(x, personal, width, label="Personal baseline", color=MINT, edgecolor="#ffffff", linewidth=0.4)
+    ax.bar(x + width, meyro, width, label="MEYRO-V2", color=CYAN, edgecolor="#ffffff", linewidth=0.4)
+    ax.set_xticks(x)
+    ax.set_xticklabels([s.replace("_", " ") for s in shapes], fontsize=10)
+    ax.set_ylabel("AUROC", fontsize=11, color=CYAN)
+    ax.set_ylim(0, 1.15)
+    ax.grid(axis="y", linestyle="--", alpha=0.2, color=CYAN)
+    ax.legend(facecolor=NAVY, edgecolor=CYAN, fontsize=9, ncols=3, loc="upper center")
+    ax.set_title(
+        "DEVIATION-SHAPE STUDY — DOES PERSONALIZATION DEPEND ON THE SHAPE OF THE DEVIATION?",
+        fontsize=12,
+        fontweight="bold",
+        color=MINT,
+        pad=14,
+    )
+    for group, value in zip(x, population, strict=True):
+        ax.text(group - width, value + 0.02, f"{value:.3f}", ha="center", fontsize=7.5, color="#ffffff")
+    for group, value in zip(x, personal, strict=True):
+        ax.text(group, value + 0.02, f"{value:.3f}", ha="center", fontsize=7.5, color="#ffffff")
+    for group, value in zip(x + width, meyro, strict=True):
+        ax.text(group + width, value + 0.02, f"{value:.3f}", ha="center", fontsize=7.5, color="#ffffff")
+
+    gains = [results[s]["personalization_gain_auroc"] for s in shapes]
+    bars = gain_ax.bar(x, gains, 0.45, color=AMBER, edgecolor="#ffffff", linewidth=0.4)
+    gain_ax.axhline(0, color=CYAN, lw=1)
+    gain_ax.set_xticks(x)
+    gain_ax.set_xticklabels([s.replace("_", " ") for s in shapes], fontsize=10)
+    gain_ax.set_ylabel("AUROC gain\n(personal - population)", fontsize=9, color=CYAN)
+    gain_ax.grid(axis="y", linestyle="--", alpha=0.2, color=CYAN)
+    for bar, value in zip(bars, gains, strict=True):
+        gain_ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + max(gains) * 0.06,
+            f"{value:+.4f}",
+            ha="center",
+            fontsize=9,
+            fontweight="bold",
+            color="#ffffff",
+        )
+    gain_ax.set_ylim(0, max(gains) * 1.4 if max(gains) > 0 else 0.01)
+
+    fig.tight_layout()
+    fig.savefig(ASSETS / "deviation_types.png", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
 def concept_timeline() -> None:
     """Illustrative schematic of the core idea.
 
@@ -427,6 +489,7 @@ def main() -> int:
     significance_figure()
     neural_gap_figure()
     cross_subject_figure()
+    deviation_types_figure()
     concept_timeline()
     print("Figures written to assets/ (all values read from experiments/*/results.json)")
     return 0

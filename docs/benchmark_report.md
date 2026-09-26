@@ -103,32 +103,65 @@ longitudinal data, not a new architecture.
 
 ## 6. Baseline drift — failure
 
-| Method | Persistent false alarms | Days to final alert |
-|---|---|---|
-| Personal Baseline (Adaptive) | `30.0%` | `41.0` |
-| Personal Baseline (Static) | `61.5%` | `41.0` |
-| MEYRO-V2 (streamed) | **`93.0%`** | `41.0` |
+| Method | Persistent false alarms | Baseline movement (σ) | Days to final alert |
+|---|---|---|---|
+| Personal Baseline (Adaptive) | `30.0%` | `1.25` | `41.0` |
+| Personal Baseline (Static) | `61.5%` | `0.00` | `41.0` |
+| MEYRO-V2 (score gate) | **`93.0%`** | `0.00` | `41.0` |
+| MEYRO-V2.1 (persistence-confirmed gate) | **`93.0%`** | `0.00` | `41.0` |
 
 MEYRO-V2 is the **worst** performer. Its gate `exp(−4·A_t)` suppresses adaptation exactly when a
 deviation is flagged, so a sustained change is alerted on indefinitely. This is the mirror image
 of the failure the gate was designed to prevent. The statistical adaptive baseline (a `z < 2.5`
-criterion) adapts correctly. Fix proposed, not implemented.
+criterion) adapts correctly. Baseline movement is `0.00 σ` for both MEYRO variants: the slow
+baseline never moves at all.
+
+**The proposed fix was implemented and it does not work.** MEYRO-V2.1 replaces the score gate with
+a persistence-confirmed rule: the established baseline may migrate only after the deviation has
+been flagged for `patience = 4` consecutive windows, with both the persistence and anomaly
+thresholds calibrated on the subject's own calibration windows (a hard-coded threshold is useless
+here — the persistence head's outputs occupy a narrow band, `≈0.32`–`0.40`). Measured, V2.1 is
+indistinguishable from V2 (`93.0%` vs `93.0%`, `0.00 σ` movement in both): the head separates its
+normal and drift regimes by only about `0.04`, which is not enough to discriminate them. The
+default remains `slow_gate_mode="score"`; V2.1 is opt-in and reported as a negative result.
 
 ---
 
-## 7. Threats to validity
+## 7. Deviation shapes — does the finding depend on the generator?
 
-- **Synthetic data with one deviation type** (sustained mean shift). Real physiology is messier.
+The benchmark injects one deviation shape (sustained mean shift), which a robust per-subject
+statistic is close to optimal for. Four shapes are therefore compared on identical splits:
+
+| Shape | Population AUROC | Personal AUROC | MEYRO-V2 AUROC | Personal − Population |
+|---|---|---|---|---|
+| `mean_shift` | `0.9394` | `0.9949` | `0.9209` | **`+0.0555`** |
+| `gradual_ramp` | `0.7015` | `0.7962` | `0.7543` | **`+0.0947`** |
+| `variance_increase` | `0.7004` | `0.8112` | `0.5784` | **`+0.1108`** |
+| `point_spike` | `0.9325` | `0.9982` | `0.7616` | **`+0.0657`** |
+
+The personalization gain is positive in **every** shape, so it is not a mean-shift artefact. The
+ordering is the expected signature of a real effect: the smallest gains are on the two shapes a
+robust mean statistic already handles almost perfectly (population AUROC `≥0.93`), and the largest
+are on the two it handles worst (`0.70`). The neural deficit is *not* explained by shape alone —
+MEYRO-V2's worst result is on `variance_increase` (`0.5784`), where a learned deviation module has
+nothing to add over a personal spread estimate.
+
+---
+
+## 8. Threats to validity
+
+- **Synthetic data.** One generator family; deviation *shape* is now varied (four shapes, §7) but no
+  real longitudinal dataset has been run.
 - **One architecture size and window length**; no capacity sweep.
 - **Subgroup/fairness analysis impossible** with the available (synthetic) metadata.
 - **Latency is single-threaded CPU** and not a deployment figure.
 
 ---
 
-## 8. Reproduction
+## 9. Reproduction
 
 ```bash
-python scripts/run_full_evaluation.py      # 9 suites -> experiments/*/results.json
-python scripts/generate_figures.py         # figures  -> assets/*.png
-pytest -q                                  # 63 tests
+python scripts/run_full_evaluation.py      # 10 suites -> experiments/*/results.json
+python scripts/generate_figures.py         # figures   -> assets/*.png
+pytest -q                                  # 69 tests
 ```

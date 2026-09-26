@@ -90,17 +90,39 @@ class SyntheticBenchmarkGenerator:
             quality = float(np.clip(self.rng.beta(20, 1), 0.1, 1.0))
             label = 0
 
-            # Inject controlled anomalies if within specified spans
+            # Inject controlled anomalies if within specified spans.
+            # ``deviation_type`` selects the *shape* of the deviation, which matters:
+            # a sustained mean shift is trivially matched by robust per-subject
+            # statistics, whereas a variance change or a point spike is not.
             if anomaly_spans:
                 for span in anomaly_spans:
                     if span["start_day"] <= day <= span["end_day"]:
                         label = 1
-                        if "step_multiplier" in span:
-                            daily_steps *= span["step_multiplier"]
-                        if "hr_shift" in span:
-                            daily_hr += span["hr_shift"]
-                        if "sleep_shift" in span:
-                            daily_sleep += span["sleep_shift"]
+                        deviation_type = span.get("deviation_type", "mean_shift")
+                        span_length = max(1, span["end_day"] - span["start_day"] + 1)
+                        progress = (day - span["start_day"] + 1) / span_length
+
+                        if deviation_type == "mean_shift":
+                            daily_steps *= span.get("step_multiplier", 1.0)
+                            daily_hr += span.get("hr_shift", 0.0)
+                            daily_sleep += span.get("sleep_shift", 0.0)
+                        elif deviation_type == "gradual_ramp":
+                            # Linear onset, so the change is only obvious late in the span.
+                            daily_steps *= 1.0 + progress * (span.get("step_multiplier", 1.0) - 1.0)
+                            daily_hr += progress * span.get("hr_shift", 0.0)
+                            daily_sleep += progress * span.get("sleep_shift", 0.0)
+                        elif deviation_type == "variance_increase":
+                            # Mean preserved, dispersion expanded.
+                            daily_steps += self.rng.normal(0, span.get("step_sigma", 2500.0))
+                            daily_hr += self.rng.normal(0, span.get("hr_sigma", 7.0))
+                            daily_sleep += self.rng.normal(0, span.get("sleep_sigma", 70.0))
+                        elif deviation_type == "point_spike":
+                            # A single sharp day; tests detection without permanent re-baselining.
+                            daily_steps *= span.get("step_multiplier", 0.25)
+                            daily_hr += span.get("hr_shift", 22.0)
+                            daily_sleep += span.get("sleep_shift", -90.0)
+                        else:
+                            raise ValueError(f"unknown deviation_type: {deviation_type!r}")
 
             # Gradual baseline drift (lifestyle change), ramped then sustained
             if drift is not None:
@@ -134,7 +156,28 @@ class SyntheticBenchmarkGenerator:
         n_subjects: int = 10,
         n_days: int = 90,
         anomaly_rate_per_subject: float = 0.5,
+        deviation_type: str = "mean_shift",
     ) -> pd.DataFrame:
+        """Generates a cohort, optionally with a specific deviation shape.
+
+        ``deviation_type`` is one of ``mean_shift`` (default), ``gradual_ramp``,
+        ``variance_increase`` or ``point_spike``. Comparing these isolates whether a
+        result depends on the *shape* of the deviation rather than on the method.
+
+        The injected span is clamped to fit inside the series. Without the clamp a
+        short series would silently receive *no* anomaly at all, so a caller asking
+        for ``anomaly_rate_per_subject=0.6`` could unknowingly evaluate on an
+        all-normal cohort. ``deviation_type`` is validated eagerly for the same
+        reason: an unrecognised shape must raise rather than quietly do nothing.
+        """
+        if deviation_type not in {
+            "mean_shift",
+            "gradual_ramp",
+            "variance_increase",
+            "point_spike",
+        }:
+            raise ValueError(f"unknown deviation_type: {deviation_type!r}")
+
         all_dfs = []
         for i in range(n_subjects):
             subj_id = f"SUBJ_{i+1:03d}"
@@ -142,9 +185,14 @@ class SyntheticBenchmarkGenerator:
             if self.rng.uniform() < anomaly_rate_per_subject:
                 # Inject a sustained deviation of 5-10 days
                 start_day = int(self.rng.integers(35, max(36, n_days - 15)))
-                length = int(self.rng.integers(4, 9))
+                # A spike is a single-day event; other shapes persist for several days.
+                length = 0 if deviation_type == "point_spike" else int(self.rng.integers(4, 9))
+                # Keep the span inside the series (leaves 5 trailing normal days so the
+                # post-deviation recovery is observable).
+                start_day = max(1, min(start_day, n_days - 1 - length - 5))
                 # Reduced activity & elevated heart rate (e.g. malaise/illness pattern)
                 spans.append({
+                    "deviation_type": deviation_type,
                     "start_day": start_day,
                     "end_day": start_day + length,
                     "step_multiplier": 0.4,

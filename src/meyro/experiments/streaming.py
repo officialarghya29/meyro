@@ -44,6 +44,10 @@ class ScoringOptions:
     # Freeze the memory after the first scored window: measures how much
     # detection is lost to the memory adapting during a sustained deviation.
     freeze_memory: bool = False
+    # Allow the slow (established) baseline to migrate only after the deviation
+    # has been continuously present for `patience` consecutive windows.
+    confirmed_slow_migration: bool = False
+    patience: int = 4
 
 
 def _subject_indices(batch: WindowBatch) -> list[tuple[str, np.ndarray]]:
@@ -94,6 +98,7 @@ def stream_scores_v2(
             if options.zero_memory:
                 fast = torch.zeros(1, hidden_dim)
                 slow = torch.zeros(1, hidden_dim)
+            streak = torch.zeros(1, 1)
 
             for window_index in indices:
                 window = torch.tensor(batch.x[window_index : window_index + 1], dtype=torch.float32)
@@ -108,9 +113,20 @@ def stream_scores_v2(
                 slow_in = slow.clone()
                 fast_in = slow_in.clone() if options.single_timescale else fast.clone()
 
-                anomaly, _unc, persistence, _d, fast_next, slow_next = model(
-                    window, context, slow_in, fast_in, quality
-                )
+                if options.confirmed_slow_migration:
+                    anomaly, _unc, persistence, fast_next, slow_next, streak = model.forward_adaptive(
+                        window,
+                        context,
+                        slow_in,
+                        fast_in,
+                        quality,
+                        streak,
+                        patience=options.patience,
+                    )
+                else:
+                    anomaly, _unc, persistence, _d, fast_next, slow_next = model(
+                        window, context, slow_in, fast_in, quality
+                    )
 
                 if options.euclidean_deviation:
                     embedding = model.encode_observation(window, context)

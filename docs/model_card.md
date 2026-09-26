@@ -1,7 +1,7 @@
 # Model Card — MEYRO
 
 **Model family:** MEYRO (Personalized Longitudinal Health Baseline Modeling)
-**Versions:** `MEYRO-V1` (single-memory reference), `MEYRO-V2` (current: dual-timescale memory + persistence)
+**Versions:** `MEYRO-V1` (single-memory reference), `MEYRO-V2` (current: dual-timescale memory + persistence), `MEYRO-V2.1` (opt-in drift-adaptation variant — measured ineffective)
 **Author:** Arghya Bose (`officialarghya29`)
 **Repository:** [github.com/officialarghya29/meyro](https://github.com/officialarghya29/meyro)
 **License:** MIT
@@ -14,6 +14,13 @@
 > benchmark evaluated untrained networks, and the drift suite varied between identical runs
 > because multi-threaded CPU recurrent kernels are nondeterministic. Determinism is now
 > enforced and the results below are reproducible; the corrected drift result is a failure.
+>
+> **Revision note 2.** `MEYRO-V2.1` was added as a targeted repair for that drift failure — a
+> persistence-confirmed slow-memory migration rule with thresholds calibrated on the subject's
+> own calibration history. It was measured, and it is **indistinguishable from V2** (`93.0%` vs
+> `93.0%` persistent false alarms, `0.00 σ` baseline movement in both). It is therefore **not**
+> the default and is retained only as a documented negative result. A new deviation-shape study
+> (§4.10) is also included: the personalization finding holds across four deviation shapes.
 
 ---
 
@@ -37,6 +44,13 @@ and a **persistence module** (causal GRU over the within-window deviation trajec
 Memory update: `gate = exp(−4·A_t)·mean(Q_t)`, `B ← (1 − η·gate)·B + η·gate·E_t`.
 A single outlier barely moves the baseline — and, as the drift experiment shows, neither is
 a sustained change absorbed.
+
+The **fast** memory is always anomaly-gated. The **slow** memory's gate is selectable:
+`slow_gate_mode="score"` (default) uses the same `exp(−4·A_t)` gate, while `"persistence"`
+(MEYRO-V2.1) uses a threshold-confirmed rule, `gate = clamp((R_t − τ)/β, 0, 1)·mean(Q_t)`, with
+`τ` calibrated at the `0.99` quantile of the subject's own calibration persistence. V2.1 also
+exposes `forward_adaptive`, which migrates the established baseline only after `patience`
+consecutive confirmed windows. Neither variant adapts successfully (§4.6).
 
 ---
 
@@ -107,7 +121,8 @@ Personal memory is the largest architectural contributor (`+0.062`); training is
 Freezing the memory changes AUROC by `+0.0008`, which **falsifies** the hypothesis that memory
 adaptation blurs detection. Training budget does matter (`+0.0397` from 30 → 120 epochs), so the
 benchmark budget was raised to 80 for all neural models. A residual gap of `0.0903` AUROC remains
-and is unresolved.
+and is unresolved. The deviation-shape study (§4.10) tests the most plausible explanation — that a
+robust mean statistic is near-optimal for the injected mean shift — and only partly supports it.
 
 ### 4.5 Held-out subjects (14 train / 6 held out)
 
@@ -121,15 +136,21 @@ Generalization gap `−0.0398` AUROC: no subject overfitting.
 
 ### 4.6 Baseline drift — **failure**
 
-| Method | Persistent false alarms | Days to final alert |
-|---|---|---|
-| Personal Baseline (Adaptive) | **`30.0%`** | `41.0` |
-| Personal Baseline (Static) | `61.5%` | `41.0` |
-| MEYRO-V2 (streamed) | **`93.0%`** — worst | `41.0` |
+| Method | Persistent false alarms | Baseline movement (σ) | Days to final alert |
+|---|---|---|---|
+| Personal Baseline (Adaptive) | **`30.0%`** | `1.25` | `41.0` |
+| Personal Baseline (Static) | `61.5%` | `0.00` | `41.0` |
+| MEYRO-V2 (score gate) | **`93.0%`** | `0.00` | `41.0` |
+| MEYRO-V2.1 (persistence-confirmed gate) | **`93.0%`** | `0.00` | `41.0` |
 
 Cause: the gate `exp(−4·A_t)` suppresses adaptation exactly when a deviation is flagged, so a
 sustained change is alerted on indefinitely. Acute-outlier probe: max baseline displacement
 `0.43 σ` from one 3× observation — MEYRO under-adapts to sustained change, it does not over-adapt to spikes.
+
+The targeted repair (V2.1) was implemented and **measured to change nothing**: the persistence head
+does not separate its normal and drift regimes (`≈0.04`) strongly enough for any calibrated
+threshold to discriminate them, so the confirmed-migration rule never fires. Reported as a
+negative result; not enabled by default.
 
 ### 4.7 Robustness (personal statistical baseline, AUROC)
 
@@ -161,6 +182,18 @@ Recommended minimum baseline collection: **~14 days**.
 | MEYRO-V1 | `5045` | `0.3938` | `19.71` |
 | MEYRO-V2 | `8966` | `0.8710` | `35.02` |
 
+### 4.10 Deviation shapes (15 subjects × 60 days, identical splits per shape)
+
+| Shape | Population AUROC | Personal AUROC | MEYRO-V2 AUROC | Personal − Population |
+|---|---|---|---|---|
+| `mean_shift` | `0.9394` | `0.9949` | `0.9209` | `+0.0555` |
+| `gradual_ramp` | `0.7015` | `0.7962` | `0.7543` | `+0.0947` |
+| `variance_increase` | `0.7004` | `0.8112` | `0.5784` | `+0.1108` |
+| `point_spike` | `0.9325` | `0.9982` | `0.7616` | `+0.0657` |
+
+The personalization gain is positive in every deviation shape, so the central finding is not an
+artefact of the mean-shift generator. MEYRO-V2 performs worst on `variance_increase` (`0.5784`).
+
 ---
 
 ## 5. Known limitations & failure cases
@@ -169,10 +202,12 @@ Recommended minimum baseline collection: **~14 days**.
    longitudinal dataset (GLOBEM requires credentialed access).
 2. **Learned models lose to the statistical personal baseline** (`0.9680`/`0.9179` vs `0.9949`).
    Diagnosed as not adaptation and not under-training; residual `0.0903` gap unexplained.
-3. **Drift adaptation fails** (`93.0%` persistent false alarms). Mechanism identified, fix not implemented.
+3. **Drift adaptation fails** (`93.0%` persistent false alarms). Mechanism identified; the targeted
+   repair (V2.1) was implemented and measured **ineffective** (`93.0%` → `93.0%`). Unresolved.
 4. **Persistence gating degrades detection** (`−0.0217`) and is reported rather than applied.
 5. **Dual-timescale memory gains only `+0.0037` AUROC** — within noise here.
-6. **Single configuration family:** one hidden width, window size, and deviation type.
+6. **Single configuration family:** one hidden width and window size, and one synthetic generator —
+   deviation *shape* is now varied across four shapes (§4.10), but no real dataset has been run.
 7. **No fairness/subgroup analysis** is possible or claimed with the available metadata.
 8. **Latency unoptimised** and single-threaded for determinism.
 
