@@ -1,6 +1,6 @@
 {
   "environment": {
-    "git_commit": "0348dbd",
+    "git_commit": "db64e92",
     "machine": "x86_64",
     "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.39",
     "python": "3.12.3"
@@ -23,16 +23,16 @@
     },
     "models": {
       "GRU Autoencoder (trained)": {
-        "auprc": 0.4438,
-        "auroc": 0.8956,
-        "f1": 0.6524,
-        "fpr_at_target_sensitivity": 0.1297,
+        "auprc": 0.5096,
+        "auroc": 0.9107,
+        "f1": 0.6739,
+        "fpr_at_target_sensitivity": 0.1203,
         "n_samples": 495.0,
-        "precision": 0.5259,
+        "precision": 0.5487,
         "prevalence": 0.1434,
-        "recall": 0.8592,
-        "specificity": 0.8703,
-        "threshold": 0.781041
+        "recall": 0.8732,
+        "specificity": 0.8797,
+        "threshold": 0.733579
       },
       "Isolation Forest": {
         "auprc": 0.7349,
@@ -47,53 +47,53 @@
         "threshold": -0.004298
       },
       "LSTM Autoencoder (trained)": {
-        "auprc": 0.516,
-        "auroc": 0.9183,
-        "f1": 0.674,
+        "auprc": 0.5281,
+        "auroc": 0.9166,
+        "f1": 0.6813,
         "fpr_at_target_sensitivity": 0.1156,
         "n_samples": 495.0,
-        "precision": 0.5545,
-        "prevalence": 0.1434,
-        "recall": 0.8592,
-        "specificity": 0.8844,
-        "threshold": 0.947172
-      },
-      "MEYRO-V1 (ours, trained)": {
-        "auprc": 0.8441,
-        "auroc": 0.9693,
-        "f1": 0.8052,
-        "fpr_at_target_sensitivity": 0.0495,
-        "n_samples": 495.0,
-        "precision": 0.747,
+        "precision": 0.5586,
         "prevalence": 0.1434,
         "recall": 0.8732,
-        "specificity": 0.9505,
-        "threshold": 0.369082
+        "specificity": 0.8844,
+        "threshold": 0.881461
+      },
+      "MEYRO-V1 (ours, trained)": {
+        "auprc": 0.8169,
+        "auroc": 0.968,
+        "f1": 0.7722,
+        "fpr_at_target_sensitivity": 0.0613,
+        "n_samples": 495.0,
+        "precision": 0.7011,
+        "prevalence": 0.1434,
+        "recall": 0.8592,
+        "specificity": 0.9387,
+        "threshold": 0.498757
       },
       "MEYRO-V2 (ours, trained)": {
-        "auprc": 0.6589,
-        "auroc": 0.8649,
-        "f1": 0.5571,
-        "fpr_at_target_sensitivity": 0.2052,
-        "mean_persistence_score": 0.3318,
+        "auprc": 0.6483,
+        "auroc": 0.9179,
+        "f1": 0.6778,
+        "fpr_at_target_sensitivity": 0.1132,
+        "mean_persistence_score": 0.2634,
         "n_samples": 495.0,
-        "precision": 0.4122,
+        "precision": 0.5596,
         "prevalence": 0.1434,
         "recall": 0.8592,
-        "specificity": 0.7948,
-        "threshold": 0.334549
+        "specificity": 0.8868,
+        "threshold": 0.53321
       },
       "MEYRO-V2 (untrained reference)": {
-        "auprc": 0.26,
-        "auroc": 0.6562,
-        "f1": 0.3202,
-        "fpr_at_target_sensitivity": 0.5873,
+        "auprc": 0.2658,
+        "auroc": 0.6142,
+        "f1": 0.2857,
+        "fpr_at_target_sensitivity": 0.6958,
         "n_samples": 495.0,
-        "precision": 0.1968,
+        "precision": 0.1713,
         "prevalence": 0.1434,
         "recall": 0.8592,
-        "specificity": 0.4127,
-        "threshold": 0.432016
+        "specificity": 0.3042,
+        "threshold": 0.41921
       },
       "One-Class SVM": {
         "auprc": 0.9536,
@@ -144,32 +144,32 @@
         "threshold": 1.068948
       },
       "TCN Autoencoder (trained)": {
-        "auprc": 0.5765,
-        "auroc": 0.9164,
-        "f1": 0.6667,
-        "fpr_at_target_sensitivity": 0.125,
+        "auprc": 0.5561,
+        "auroc": 0.9172,
+        "f1": 0.6354,
+        "fpr_at_target_sensitivity": 0.1415,
         "n_samples": 495.0,
-        "precision": 0.5391,
-        "prevalence": 0.1434,
-        "recall": 0.8732,
-        "specificity": 0.875,
-        "threshold": 0.013085
-      },
-      "Transformer Autoencoder (trained)": {
-        "auprc": 0.5438,
-        "auroc": 0.9119,
-        "f1": 0.5894,
-        "fpr_at_target_sensitivity": 0.1769,
-        "n_samples": 495.0,
-        "precision": 0.4485,
+        "precision": 0.5041,
         "prevalence": 0.1434,
         "recall": 0.8592,
-        "specificity": 0.8231,
-        "threshold": 0.068798
+        "specificity": 0.8585,
+        "threshold": 0.003247
+      },
+      "Transformer Autoencoder (trained)": {
+        "auprc": 0.5379,
+        "auroc": 0.9123,
+        "f1": 0.61,
+        "fpr_at_target_sensitivity": 0.1604,
+        "n_samples": 495.0,
+        "precision": 0.4729,
+        "prevalence": 0.1434,
+        "recall": 0.8592,
+        "specificity": 0.8396,
+        "threshold": 0.026789
       }
     }
   },
   "seed": 42,
   "suite": "master_benchmark",
-  "timestamp": "2026-09-26T15:55:38.387789+00:00"
+  "timestamp": "2026-09-26T16:33:42.923587+00:00"
 }

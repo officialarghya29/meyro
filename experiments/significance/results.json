@@ -1,0 +1,168 @@
+{
+  "environment": {
+    "git_commit": "db64e92",
+    "machine": "x86_64",
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "results": {
+    "hypothesis": "Personalized baselines detect deviations with fewer false positives than population-level baselines.",
+    "per_method": {
+      "Personal Baseline (Adaptive)": {
+        "global_auroc_across_seeds": {
+          "mean": 0.9956999999999999,
+          "std": 0.002286190426597653
+        },
+        "global_fpr_at_85_across_seeds": {
+          "mean": 0.0085,
+          "std": 0.005657443474456168
+        },
+        "n_single_class_subjects_excluded": 6,
+        "n_subjects_scored": 25,
+        "per_subject_auroc": {
+          "ci_lower": 1.0,
+          "ci_upper": 1.0,
+          "mean": 1.0,
+          "n": 25
+        }
+      },
+      "Personal Baseline (Static)": {
+        "global_auroc_across_seeds": {
+          "mean": 0.9964333333333334,
+          "std": 0.0012256517540566842
+        },
+        "global_fpr_at_85_across_seeds": {
+          "mean": 0.0061333333333333335,
+          "std": 0.0023113247764479624
+        },
+        "n_single_class_subjects_excluded": 6,
+        "n_subjects_scored": 25,
+        "per_subject_auroc": {
+          "ci_lower": 0.9985185185185185,
+          "ci_upper": 1.0,
+          "mean": 0.9995061728395062,
+          "n": 25
+        }
+      },
+      "Population Baseline": {
+        "global_auroc_across_seeds": {
+          "mean": 0.9457333333333334,
+          "std": 0.0378248889254446
+        },
+        "global_fpr_at_85_across_seeds": {
+          "mean": 0.15856666666666666,
+          "std": 0.11091445151807565
+        },
+        "n_single_class_subjects_excluded": 6,
+        "n_subjects_scored": 25,
+        "per_subject_auroc": {
+          "ci_lower": 0.8876924074074073,
+          "ci_upper": 0.971630749559083,
+          "mean": 0.9356090625423958,
+          "n": 25
+        }
+      }
+    },
+    "per_seed_summary": [
+      {
+        "Personal Baseline (Adaptive)": {
+          "auroc": 0.9929,
+          "fpr_at_85": 0.0165,
+          "subjects_scored": 10
+        },
+        "Personal Baseline (Static)": {
+          "auroc": 0.9949,
+          "fpr_at_85": 0.0094,
+          "subjects_scored": 10
+        },
+        "Population Baseline": {
+          "auroc": 0.9394,
+          "fpr_at_85": 0.1934,
+          "subjects_scored": 10
+        },
+        "seed": 42
+      },
+      {
+        "Personal Baseline (Adaptive)": {
+          "auroc": 0.9985,
+          "fpr_at_85": 0.0044,
+          "subjects_scored": 6
+        },
+        "Personal Baseline (Static)": {
+          "auroc": 0.9979,
+          "fpr_at_85": 0.0044,
+          "subjects_scored": 6
+        },
+        "Population Baseline": {
+          "auroc": 0.9949,
+          "fpr_at_85": 0.0087,
+          "subjects_scored": 6
+        },
+        "seed": 7
+      },
+      {
+        "Personal Baseline (Adaptive)": {
+          "auroc": 0.9957,
+          "fpr_at_85": 0.0046,
+          "subjects_scored": 9
+        },
+        "Personal Baseline (Static)": {
+          "auroc": 0.9965,
+          "fpr_at_85": 0.0046,
+          "subjects_scored": 9
+        },
+        "Population Baseline": {
+          "auroc": 0.9029,
+          "fpr_at_85": 0.2736,
+          "subjects_scored": 9
+        },
+        "seed": 2024
+      }
+    ],
+    "protocol": {
+      "calibration_days": 21,
+      "n_days_per_subject": 60,
+      "n_subjects_per_seed": 15,
+      "seeds": [
+        42,
+        7,
+        2024
+      ],
+      "test": "two-sided paired Wilcoxon signed-rank on per-subject AUROC",
+      "unit_of_analysis": "subject",
+      "window_size": 7
+    },
+    "tests": {
+      "adaptive_vs_static_personalized": {
+        "median_a": 1.0,
+        "median_b": 1.0,
+        "median_difference": 0.0,
+        "n_pairs": 25,
+        "p_value": 0.31731050786291415,
+        "statistic": 0.0,
+        "win_rate_a": 0.04
+      },
+      "personalized_adaptive_vs_population": {
+        "median_a": 1.0,
+        "median_b": 0.9814814814814815,
+        "median_difference": 0.01851851851851849,
+        "n_pairs": 25,
+        "p_value": 0.0006549583433856954,
+        "statistic": 0.0,
+        "win_rate_a": 0.6
+      },
+      "personalized_static_vs_population": {
+        "median_a": 1.0,
+        "median_b": 0.9814814814814815,
+        "median_difference": 0.01851851851851849,
+        "n_pairs": 25,
+        "p_value": 0.0006549583433856954,
+        "statistic": 0.0,
+        "win_rate_a": 0.6
+      }
+    }
+  },
+  "seed": 42,
+  "suite": "significance",
+  "timestamp": "2026-09-26T16:33:45.927371+00:00"
+}

@@ -7,6 +7,7 @@ machine-readable artifact rather than transcribed by hand.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import platform
 import random
@@ -24,14 +25,28 @@ RESULTS_DIR = Path("results")
 
 
 def set_global_seed(seed: int = 42) -> None:
-    """Seeds Python, NumPy and (if installed) PyTorch for reproducibility."""
+    """Seeds Python, NumPy and PyTorch, and forces deterministic execution.
+
+    Seeding alone is not enough for reproducibility. Multi-threaded recurrent
+    kernels on CPU reduce in a nondeterministic order, which made results vary
+    between identical runs — for one drift experiment the same configuration
+    produced a 2% and a 93% persistent-false-alarm rate on separate runs.
+
+    Threading is therefore pinned to a single thread and deterministic kernels
+    are requested. This costs wall-clock time; correctness of the reported
+    numbers takes priority.
+    """
     random.seed(seed)
     np.random.seed(seed)
     try:
         import torch
 
         torch.manual_seed(seed)
-        torch.use_deterministic_algorithms(False)  # GRU/LSTM kernels are non-deterministic on CPU
+        torch.set_num_threads(1)
+        # Not all kernels implement deterministic variants; warn_only avoids a
+        # hard failure on older torch versions.
+        with contextlib.suppress(RuntimeError, AttributeError):
+            torch.use_deterministic_algorithms(True, warn_only=True)
     except ImportError:  # pragma: no cover - torch is a declared dependency
         pass
 

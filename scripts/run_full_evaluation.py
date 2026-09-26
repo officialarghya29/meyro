@@ -23,9 +23,12 @@ import torch
 
 from meyro.evaluation.ablation import AblationStudy
 from meyro.evaluation.cold_start import ColdStartAnalysis
+from meyro.evaluation.cross_subject import CrossSubjectStudy
 from meyro.evaluation.drift import BaselineDriftAnalysis
 from meyro.evaluation.efficiency import measure_efficiency
+from meyro.evaluation.neural_gap import NeuralGapDiagnosis
 from meyro.evaluation.robustness import RobustnessTestSuite
+from meyro.evaluation.significance import PersonalizationSignificanceStudy
 from meyro.experiments.benchmark import MasterModelBenchmark
 from meyro.models.meyro import MEYROModel, MEYROModelV2
 from meyro.models.tcn import TCNAutoencoder
@@ -43,8 +46,10 @@ def _print(title: str) -> None:
 
 
 def run_benchmark() -> dict:
-    _print("[1/6] MASTER MODEL COMPARISON (Phase 18)")
-    results = MasterModelBenchmark(n_subjects=15, n_days=60, seed=SEED, epochs=30).run()
+    _print("[1/9] MASTER MODEL COMPARISON (Phase 18)")
+    # One epoch budget applied identically to every neural model; sensitivity to it
+    # is reported by the neural-gap diagnosis rather than tuned on the test set.
+    results = MasterModelBenchmark(n_subjects=15, n_days=60, seed=SEED, epochs=80).run()
     metadata = results.pop("_metadata")
     for name, metrics in results.items():
         print(
@@ -56,8 +61,8 @@ def run_benchmark() -> dict:
 
 
 def run_ablation() -> dict:
-    _print("[2/6] ABLATION STUDY (Phase 19) — trained MEYRO-V2")
-    results = AblationStudy(n_subjects=12, n_days=50, seed=SEED, epochs=25).run()
+    _print("[2/9] ABLATION STUDY (Phase 19) — trained MEYRO-V2")
+    results = AblationStudy(n_subjects=12, n_days=50, seed=SEED, epochs=60).run()
     metadata = results.pop("_metadata")
     for name, metrics in results.items():
         print(
@@ -69,7 +74,7 @@ def run_ablation() -> dict:
 
 
 def run_robustness() -> dict:
-    _print("[3/6] ROBUSTNESS STRESS SUITE (Phase 20)")
+    _print("[3/9] ROBUSTNESS STRESS SUITE (Phase 20)")
     suite = RobustnessTestSuite(seed=SEED)
     results = suite.run_all()
     for axis, values in results.items():
@@ -79,15 +84,58 @@ def run_robustness() -> dict:
 
 
 def run_cold_start() -> dict:
-    _print("[4/6] FEW-SHOT / COLD-START CURVE (Phases 21-23)")
+    _print("[4/9] FEW-SHOT / COLD-START CURVE (Phases 21-23)")
     results = ColdStartAnalysis(seed=SEED).run_curve()
     print(json.dumps(results, indent=2))
     save_experiment_results("cold_start", results, seed=SEED)
     return results
 
 
+def run_significance() -> dict:
+    _print("[5/9] PERSONALIZATION SIGNIFICANCE (multi-seed, per-subject)")
+    results = PersonalizationSignificanceStudy(seeds=(42, 7, 2024), n_subjects=15, n_days=60).run()
+    for method, report in results["per_method"].items():
+        ci = report["per_subject_auroc"]
+        print(
+            f"{method:<30} per-subject AUROC {ci['mean']:.4f} "
+            f"[{ci['ci_lower']:.4f}, {ci['ci_upper']:.4f}] n={ci['n']}"
+        )
+    for name, test in results["tests"].items():
+        print(
+            f"  {name}: p={test['p_value']:.3e} median Δ={test['median_difference']:+.4f} "
+            f"win_rate={test['win_rate_a']:.2f} n={test['n_pairs']}"
+        )
+    save_experiment_results("significance", results, seed=SEED)
+    return results
+
+
+def run_neural_gap() -> dict:
+    _print("[6/9] NEURAL GAP DIAGNOSIS")
+    results = NeuralGapDiagnosis(n_subjects=15, n_days=60, seed=SEED, epochs=30).run()
+    metadata = results.pop("_metadata")
+    diagnosis = results.pop("_diagnosis")
+    for name, metrics in results.items():
+        print(
+            f"{name:<44} AUROC={metrics['auroc']:<7} F1={metrics['f1']:<7} "
+            f"separation={metrics['score_separation']}"
+        )
+    print(json.dumps(diagnosis, indent=2))
+    save_experiment_results(
+        "neural_gap", {"configurations": results, "diagnosis": diagnosis, "metadata": metadata}, seed=SEED
+    )
+    return {"configurations": results, "diagnosis": diagnosis, "metadata": metadata}
+
+
+def run_cross_subject() -> dict:
+    _print("[7/9] HELD-OUT SUBJECT EVALUATION")
+    results = CrossSubjectStudy(n_subjects=20, n_days=60, seed=SEED, epochs=80).run()
+    print(json.dumps(results, indent=2))
+    save_experiment_results("cross_subject", results, seed=SEED)
+    return results
+
+
 def run_drift() -> dict:
-    _print("[5/6] BASELINE DRIFT (Phase 24)")
+    _print("[8/9] BASELINE DRIFT (Phase 24)")
     analysis = BaselineDriftAnalysis(seed=SEED)
     results = analysis.run()
     results["acute_outlier_probe"] = analysis.acute_outlier_probe()
@@ -97,7 +145,7 @@ def run_drift() -> dict:
 
 
 def run_efficiency() -> dict:
-    _print("[6/6] MODEL EFFICIENCY (Phase 29)")
+    _print("[9/9] MODEL EFFICIENCY (Phase 29)")
     set_global_seed(SEED)
     n_features, window = 3, 7
     x = torch.randn(64, window, n_features)
@@ -141,6 +189,9 @@ def main() -> int:
     run_ablation()
     run_robustness()
     run_cold_start()
+    run_significance()
+    run_neural_gap()
+    run_cross_subject()
     run_drift()
     run_efficiency()
     _print("ALL SUITES COMPLETE — artifacts written to experiments/*/results.json")

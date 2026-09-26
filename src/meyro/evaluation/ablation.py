@@ -99,7 +99,7 @@ class AblationStudy:
         # All ablations are streamed, because adaptation is only observable online:
         # at a single static step the two memories are identical by construction.
 
-        # 1. Full model
+        # 1. Full model (persistence computed but not used to gate the score)
         full_scores, _full_persistence = stream(ScoringOptions())
         results["MEYRO-V2 Full (trained)"] = detection_metrics(y_true, full_scores)
 
@@ -128,8 +128,9 @@ class AblationStudy:
             y_true, stream(ScoringOptions(euclidean_deviation=True))[0]
         )
 
-        # 7. Persistence gating applied to the anomaly score
-        results["Ablation: w/o Persistence Gating"] = detection_metrics(y_true, full_scores)
+        # 7. Persistence gating applied to the anomaly score.
+        # The ungated case IS the full model, so it is reported once above rather
+        # than duplicated as a separate "ablation" row.
         results["MEYRO-V2 + Persistence Gating"] = detection_metrics(
             y_true, stream(ScoringOptions(persistence_gating=True))[0]
         )

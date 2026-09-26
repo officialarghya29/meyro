@@ -41,6 +41,9 @@ class ScoringOptions:
     unit_quality: bool = False
     euclidean_deviation: bool = False
     persistence_gating: bool = False
+    # Freeze the memory after the first scored window: measures how much
+    # detection is lost to the memory adapting during a sustained deviation.
+    freeze_memory: bool = False
 
 
 def _subject_indices(batch: WindowBatch) -> list[tuple[str, np.ndarray]]:
@@ -120,8 +123,8 @@ def stream_scores_v2(
                 anomalies[window_index] = score
                 persistences[window_index] = float(persistence.squeeze())
 
-                # Causal memory update; an ablated memory stays at zero.
-                if not options.zero_memory:
+                # Causal memory update; an ablated memory stays put.
+                if not options.zero_memory and not options.freeze_memory:
                     fast = fast_next.clone()
                     slow = slow_next.clone()
 
@@ -160,7 +163,7 @@ def stream_scores_v1(
                 anomaly, _unc, _d, memory_next = model(window, context, memory, quality)
                 anomalies[window_index] = float(anomaly.squeeze())
 
-                if not options.zero_memory:
+                if not options.zero_memory and not options.freeze_memory:
                     memory = memory_next.clone()
 
     return anomalies

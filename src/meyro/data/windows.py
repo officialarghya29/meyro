@@ -89,6 +89,44 @@ def _context_from_timestamps(timestamps: pd.Series) -> np.ndarray:
     return np.stack([np.sin(2.0 * np.pi * dows / 7.0), np.cos(2.0 * np.pi * dows / 7.0)], axis=-1)
 
 
+def align_row_scores(
+    eval_df: pd.DataFrame,
+    row_scores: np.ndarray,
+    window_size: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Aligns row-level scores to window-level labels.
+
+    A window ending at row ``t`` contains rows ``[t-window_size+1, t]``, so the
+    score for that window is the row score at index ``t``. Statistical baselines
+    score individual rows while windowed models score windows; aligning on the
+    *ending* row keeps both causal and directly comparable.
+
+    Returns ``(y_true, scores, subject_ids)`` with one entry per window.
+    """
+    scored = eval_df.copy()
+    scored["_row_score"] = np.asarray(row_scores, dtype=np.float64)
+    offset = window_size - 1
+
+    labels: list[np.ndarray] = []
+    values: list[np.ndarray] = []
+    subjects: list[np.ndarray] = []
+
+    for subject_id, group in scored.groupby("subject_id", sort=False):
+        ordered = group.sort_values("timestamp")
+        labels.append(ordered["ground_truth_label"].to_numpy()[offset:])
+        values.append(ordered["_row_score"].to_numpy()[offset:])
+        subjects.append(np.array([str(subject_id)] * max(0, len(ordered) - offset)))
+
+    if not labels:
+        return np.empty(0, dtype=int), np.empty(0), np.empty(0, dtype=object)
+
+    return (
+        np.concatenate(labels).astype(int),
+        np.concatenate(values),
+        np.concatenate(subjects),
+    )
+
+
 def build_windows(
     df: pd.DataFrame,
     feature_cols: list[str],

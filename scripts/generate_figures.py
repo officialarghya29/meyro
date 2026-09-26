@@ -241,6 +241,131 @@ def robustness_figure() -> None:
     plt.close(fig)
 
 
+def significance_figure() -> None:
+    results = load_artifact("significance")
+    methods = list(results["per_method"].keys())
+    means = [results["per_method"][m]["per_subject_auroc"]["mean"] for m in methods]
+    lowers = [results["per_method"][m]["per_subject_auroc"]["ci_lower"] for m in methods]
+    uppers = [results["per_method"][m]["per_subject_auroc"]["ci_upper"] for m in methods]
+    colors = [CORAL if "Population" in m else MINT for m in methods]
+
+    fig, ax = _frame(
+        "PER-SUBJECT AUROC WITH 95% BOOTSTRAP CIs",
+        "Unit of analysis is the subject; test is a paired Wilcoxon signed-rank across seeds",
+    )
+    y = np.arange(len(methods))
+    errors = [
+        [mean - lower for mean, lower in zip(means, lowers, strict=True)],
+        [upper - mean for mean, upper in zip(means, uppers, strict=True)],
+    ]
+    ax.errorbar(means, y, xerr=errors, fmt="o", color=CYAN, ecolor=MINT, capsize=6, markersize=9)
+    for index, mean in enumerate(means):
+        ax.text(mean, index - 0.22, f"{mean:.4f}", ha="center", fontsize=9, color="#ffffff")
+    ax.set_yticks(y)
+    ax.set_yticklabels(methods, fontsize=9)
+    ax.set_xlabel("Per-subject AUROC (95% CI)", fontsize=11, color=CYAN)
+    ax.grid(axis="x", linestyle="--", alpha=0.2, color=CYAN)
+    for index, color in enumerate(colors):
+        ax.get_yticklabels()[index].set_color(color)
+
+    test = results["tests"].get("personalized_static_vs_population", {})
+    if test:
+        ax.set_title(
+            "PER-SUBJECT AUROC WITH 95% BOOTSTRAP CIs\n"
+            f"personalized vs population: p = {test['p_value']:.2e}, win rate = {test['win_rate_a']:.2f}",
+            fontsize=12,
+            fontweight="bold",
+            color=MINT,
+            pad=18,
+        )
+    fig.tight_layout()
+    fig.savefig(ASSETS / "significance_forest.png", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
+def neural_gap_figure() -> None:
+    results = load_artifact("neural_gap")
+    diagnosis = results["diagnosis"]
+    budgets = sorted(int(k) for k in diagnosis["epoch_budget_aurocs"])
+    values = [diagnosis["epoch_budget_aurocs"][str(b)] for b in budgets]
+    control = results["configurations"]["Control: Statistical Personal Baseline"]["auroc"]
+
+    fig, ax = _frame(
+        "NEURAL GAP DIAGNOSIS",
+        "Training budget is a real constraint; memory adaptation is not the cause of the gap",
+    )
+    ax.plot(budgets, values, "-o", color=MINT, lw=2.5, markersize=8, label="MEYRO-V2 (streaming)")
+    ax.axhline(
+        control, color=CORAL, ls="--", lw=2, label=f"Statistical personal baseline ({control:.4f})"
+    )
+    frozen = results["configurations"]["MEYRO-V2 frozen memory"]["auroc"]
+    streaming = results["configurations"]["MEYRO-V2 streaming (adaptive)"]["auroc"]
+    ax.scatter([budgets[0]], [frozen], color=CYAN, zorder=5, s=90, marker="s")
+    ax.annotate(
+        f"frozen memory {frozen:.4f}\n(adaptation cost {frozen - streaming:+.4f})",
+        xy=(budgets[0], frozen),
+        xytext=(budgets[0] + 8, frozen - 0.03),
+        color=CYAN,
+        fontsize=9,
+        arrowprops={"arrowstyle": "->", "color": CYAN},
+    )
+    for budget, value in zip(budgets, values, strict=True):
+        ax.text(budget, value + 0.004, f"{value:.4f}", ha="center", fontsize=9, color="#ffffff")
+    ax.set_xlabel("Training epochs", fontsize=11, color=CYAN, labelpad=10)
+    ax.set_ylabel("AUROC", fontsize=11, color=CYAN)
+    ax.grid(alpha=0.2, color=CYAN)
+    ax.legend(facecolor=NAVY, edgecolor=CYAN, fontsize=9)
+    fig.tight_layout()
+    fig.savefig(ASSETS / "neural_gap_diagnosis.png", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
+def cross_subject_figure() -> None:
+    results = load_artifact("cross_subject")
+    labels = [
+        "MEYRO-V2\nwithin-subject",
+        "MEYRO-V2\nunseen subjects",
+        "Statistical baseline\nunseen subjects",
+    ]
+    values = [
+        results["within_subject"]["MEYRO-V2 streaming"]["auroc"],
+        results["cross_subject"]["MEYRO-V2 streaming (unseen subjects)"]["auroc"],
+        results["cross_subject"]["Statistical Personal Baseline (unseen subjects)"]["auroc"],
+    ]
+    colors = [CYAN, MINT, CORAL]
+
+    fig, ax = _frame(
+        "HELD-OUT SUBJECT GENERALIZATION",
+        "Held-out subjects never contribute to training or to the standardizer",
+    )
+    bars = ax.bar(labels, values, color=colors, width=0.55, edgecolor="#ffffff", linewidth=0.4)
+    for bar, value in zip(bars, values, strict=True):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.01,
+            f"{value:.4f}",
+            ha="center",
+            fontsize=10,
+            fontweight="bold",
+            color="#ffffff",
+        )
+    ax.set_ylabel("AUROC", fontsize=11, color=CYAN)
+    ax.set_ylim(0, 1.08)
+    ax.grid(axis="y", linestyle="--", alpha=0.2, color=CYAN)
+    ax.text(
+        0.5,
+        0.06,
+        f"generalization gap: {results['generalization_gap_auroc']:+.4f} AUROC",
+        transform=ax.transAxes,
+        ha="center",
+        fontsize=10,
+        color=AMBER,
+    )
+    fig.tight_layout()
+    fig.savefig(ASSETS / "cross_subject.png", facecolor=fig.get_facecolor())
+    plt.close(fig)
+
+
 def concept_timeline() -> None:
     """Illustrative schematic of the core idea.
 
@@ -299,6 +424,9 @@ def main() -> int:
     cold_start_figure()
     drift_figure()
     robustness_figure()
+    significance_figure()
+    neural_gap_figure()
+    cross_subject_figure()
     concept_timeline()
     print("Figures written to assets/ (all values read from experiments/*/results.json)")
     return 0
