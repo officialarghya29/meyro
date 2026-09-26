@@ -52,7 +52,20 @@ class SyntheticBenchmarkGenerator:
         base_hr_mean: float | None = None,
         base_sleep_mean: float | None = None,
         anomaly_spans: list[dict[str, Any]] | None = None,
+        drift: dict[str, Any] | None = None,
     ) -> pd.DataFrame:
+        """Generates one subject's longitudinal series.
+
+        Args:
+            drift: optional gradual lifestyle change, e.g.
+                ``{"start_day": 30, "duration_days": 14, "step_multiplier": 0.7,
+                "hr_shift": -4.0, "sleep_shift": 25.0}``. The change is ramped
+                linearly across ``duration_days`` and then persists. Drift rows
+                carry ``ground_truth_label = 0``: a lifestyle change is a new
+                normal, not an anomalous event. Correct behaviour is therefore
+                to stop flagging it after adaptation, which is exactly what the
+                drift experiment measures.
+        """
         if start_date is None:
             start_date = datetime(2025, 1, 1, 0, 0, tzinfo=UTC)
 
@@ -88,6 +101,18 @@ class SyntheticBenchmarkGenerator:
                             daily_hr += span["hr_shift"]
                         if "sleep_shift" in span:
                             daily_sleep += span["sleep_shift"]
+
+            # Gradual baseline drift (lifestyle change), ramped then sustained
+            if drift is not None:
+                start = int(drift["start_day"])
+                duration = max(1, int(drift.get("duration_days", 1)))
+                if day >= start:
+                    progress = min(1.0, (day - start + 1) / duration)
+                    daily_steps *= 1.0 + progress * (drift.get("step_multiplier", 1.0) - 1.0)
+                    daily_hr += progress * drift.get("hr_shift", 0.0)
+                    daily_sleep += progress * drift.get("sleep_shift", 0.0)
+                    if day >= start + duration:
+                        label = 0  # sustained new normal is not a transient anomaly
 
             records.append({
                 "subject_id": subject_id,
@@ -128,6 +153,39 @@ class SyntheticBenchmarkGenerator:
                 })
             df = self.generate_subject_series(
                 subject_id=subj_id, n_days=n_days, anomaly_spans=spans
+            )
+            all_dfs.append(df)
+        return pd.concat(all_dfs, ignore_index=True)
+
+    def generate_drift_cohort(
+        self,
+        n_subjects: int = 10,
+        n_days: int = 70,
+        drift_start_day: int = 28,
+        drift_duration_days: int = 12,
+        step_multiplier: float = 0.60,
+        hr_shift: float = 7.0,
+        sleep_shift: float = 45.0,
+    ) -> pd.DataFrame:
+        """Generates a cohort where every subject undergoes a gradual lifestyle change.
+
+        The change begins after the calibration window and is then sustained, so
+        a static baseline will fire indefinitely while an adaptive baseline
+        should re-establish a new normal.
+        """
+        all_dfs = []
+        for i in range(n_subjects):
+            subj_id = f"SUBJ_{i+1:03d}"
+            df = self.generate_subject_series(
+                subject_id=subj_id,
+                n_days=n_days,
+                drift={
+                    "start_day": drift_start_day,
+                    "duration_days": drift_duration_days,
+                    "step_multiplier": step_multiplier,
+                    "hr_shift": hr_shift,
+                    "sleep_shift": sleep_shift,
+                },
             )
             all_dfs.append(df)
         return pd.concat(all_dfs, ignore_index=True)

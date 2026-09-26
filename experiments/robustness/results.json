@@ -1,0 +1,45 @@
+{
+  "environment": {
+    "git_commit": "0348dbd",
+    "machine": "x86_64",
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
+  },
+  "results": {
+    "device_variation": {
+      "Device bias 0%": 0.9968,
+      "Device bias 15%": 0.9968,
+      "Device bias 5%": 0.9968
+    },
+    "history_length": {
+      "History 14d": 0.9947,
+      "History 21d": 0.9974,
+      "History 28d": 0.9982,
+      "History 7d": 0.9813
+    },
+    "missing_data": {
+      "Missing 0%": 0.9968,
+      "Missing 10%": 0.9852,
+      "Missing 20%": 0.9958,
+      "Missing 30%": 0.975
+    },
+    "sampling_rate": {
+      "Sampling 1/2x": 0.9909,
+      "Sampling 1/3x": 0.9983,
+      "Sampling 1x": 0.9968
+    },
+    "sensor_noise": {
+      "Noise 1.0x": 0.9974,
+      "Noise 2.0x": 0.9962,
+      "Noise 4.0x": 0.9859
+    },
+    "spike_outliers": {
+      "Outliers 1%": 0.9907,
+      "Outliers 3%": 0.9737,
+      "Outliers 5%": 0.9551
+    }
+  },
+  "seed": 42,
+  "suite": "robustness",
+  "timestamp": "2026-09-26T15:55:40.487957+00:00"
+}
